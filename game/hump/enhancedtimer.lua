@@ -1,7 +1,7 @@
 
-local Object = require("classic")
+local Object = require("lib.classic")
 local EnhancedTimer = Object:extend()
-local Timer = require 'hump/timer'
+local Timer = require("hump.timer")
 
 function EnhancedTimer:new()
     self.timer = Timer()
