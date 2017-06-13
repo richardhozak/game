@@ -19,11 +19,14 @@ local mapName
 local saveDir
 local font
 
+local lastSavedMap
+
 local help = [[
 right mouse - move map
 left mouse - draw tile
 mouse wheel - change tile
 1-9 key - select tile
+ctrl+s - save map
 ]]
 
 local tiles = {
@@ -58,8 +61,6 @@ function love.load()
 end
 
 function love.update(dt)
-    
-
     if love.mouse.isDown(2) then
         local mouseX, mouseY = love.mouse.getPosition()
         local diffX = mouseX - beginX
@@ -262,9 +263,24 @@ local function drawDialog()
     end
 end
 
+local function drawMapBackground()
+    if not lastSavedMap then
+        return
+    end
+
+    local map = lastSavedMap
+    local x,y = map.x * tileSize, map.y*tileSize
+    local w,h = map.width*tileSize, map.height*tileSize
+    love.graphics.setColor(255,255,255,20)
+    love.graphics.rectangle("fill", x, y, w, h)
+    love.graphics.setColor(255,255,255,50)
+    love.graphics.rectangle("line", x, y, w, h)
+end
+
 function love.draw()
     camera:draw(function(x,y,w,h)
         drawBackground(x,y,w,h)
+        drawMapBackground()
         drawWorld()
     end)
 
@@ -276,9 +292,15 @@ function love.draw()
     local width, height = love.graphics.getDimensions()
 
     love.graphics.setColor(255,255,255,255)
-    love.graphics.print("savedir: " .. saveDir, 0, height - font:getHeight())
+    love.graphics.print("location: " .. saveDir, 0, height - font:getHeight())
+    love.graphics.printf(help, width - 200,0,200,"right")
 
-    love.graphics.printf(help,width - 200,0,200,"right")
+    if not dialogVisible then
+        local mapDisplay = "map: " .. mapName
+        love.graphics.print(mapDisplay, width - font:getWidth(mapDisplay), height - font:getHeight())
+    end
+
+    love.graphics.print(string.format("x: %d, y: %d", camera.x, camera.y))
 end
 
 function love.wheelmoved(x, y)
@@ -313,9 +335,119 @@ function love.mousereleased(x, y, button, istouch)
     end
 end
 
-local function loadWorld(items)
+local function getSelectedPosition(items, comparer)
+    local item = items[1]
+    local selectedX, selectedY = item.x, item.y
+
+    for i=2, #items do
+        item = items[i]
+
+        if comparer(selectedX, item.x) then
+            selectedX = item.x
+        end
+
+        if comparer(selectedY, item.y) then
+            selectedY = item.y
+        end
+    end
+
+    return selectedX, selectedY
+end
+
+local function getSmallestPosition(items)
+    return getSelectedPosition(items, function(selected, current) return current < selected end)
+end
+
+local function getLargestPosition(items)
+    return getSelectedPosition(items, function(selected, current) return current > selected end)
+end
+
+local function normalizeMap()
+    local items, len = world:getItems()
+    local x, y = getSmallestPosition(items)
+    local offsetX, offsetY = 0-x,0-y
+
+    for i=1, len do
+        local item = items[i]
+        item.x = item.x + offsetX
+        item.y = item.y + offsetY
+        world:update(item, item.x + offsetX, item.y + offsetY)
+    end
+
+    return items, len
+end
+
+local function loadWorld(name)
+    local map
+    local world = bump.newWorld(50)
+
+    if love.filesystem.exists(name) then
+        local chunk = love.filesystem.load(name)
+        map = chunk()
+    else
+        return nil
+    end
+
+    local items
+    if map.version then
+        items = map.items
+    else
+        items = map
+    end
+
     for index, item in ipairs(items) do
+        if map.version then
+            item.index = item.tile
+            item.tile = nil
+            item.x = item.x * tileSize
+            item.y = item.y * tileSize
+        end
         world:add(item, item.x, item.y, tileSize, tileSize)
+    end
+
+    return world, map
+end
+
+local function saveWorld()
+    local file, errorstr = love.filesystem.newFile(mapName, "w")
+    if file then
+        print("saving file")
+        local items, len = world:getItems()
+
+        local mapX, mapY = getSmallestPosition(items)
+        local maxMapX, maxMapY = getLargestPosition(items)
+        local mapWidth = maxMapX - mapX
+        local mapHeight = maxMapY - mapY
+
+        mapX = mapX / tileSize
+        mapY = mapY / tileSize
+        mapWidth = mapWidth / tileSize + 1
+        mapHeight = mapHeight / tileSize + 1
+
+        local mappedItems = {}
+
+        for i=1, len do
+            local item = items[i]
+            table.insert(mappedItems, {x=item.x/tileSize,y=item.y/tileSize,tile=item.index})
+        end
+
+        print("w", mapWidth)
+        print("h", mapHeight)
+
+        local map = {}
+        map.version = 1
+        map.items = mappedItems
+        map.x = mapX
+        map.y = mapY
+        map.width = mapWidth
+        map.height = mapHeight
+        lastSavedMap = map
+
+        local encoded = luatable.encode_pretty(map)
+        file:write(encoded)
+        file:close()
+    else
+        error(errorstr)
     end
 end
 
@@ -329,11 +461,10 @@ function love.keypressed(key, scancode, isrepeat)
         elseif scancode == "return" then
             if #mapName > 0 then
                 mapName = mapName .. ".lua"
-                if love.filesystem.exists(mapName) then
-                    local chunk = love.filesystem.load(mapName)
-                    loadWorld(chunk())
-                end
-
+                local loaded, map = loadWorld(mapName)
+                world = loaded
+                lastSavedMap = map
+                camera:setPosition(map.x*tileSize,map.y*tileSize)
                 dialogVisible = false
             end
         elseif #scancode == 1 and #mapName < 20 then
@@ -345,16 +476,19 @@ function love.keypressed(key, scancode, isrepeat)
         return
     end
 
-    if key == "s" and love.keyboard.isDown("lctrl") then
-        local file, errorstr = love.filesystem.newFile(mapName, "w")
-        if file then
-            print("saving file")
-            local items, len = world:getItems()
-            local encoded = luatable.encode(items)
-            file:write(encoded)
-            file:close()
-        else
-            error(errorstr)
+    if love.keyboard.isDown("lctrl") then
+        if key == "s" then
+            saveWorld()
+            --[[
+        elseif key == "n" then
+            print("normalizing map")
+            local items, len = normalizeMap()
+            world = bump.newWorld(50)
+            for i=1,len do
+                local item = items[i]
+                world:add(item, item.x, item.y, tileSize, tileSize)
+            end
+            --]]
         end
     end
 
@@ -362,6 +496,7 @@ function love.keypressed(key, scancode, isrepeat)
         selectedTileIndex = num
     end
 end
+
 
 function love.keyreleased(key, scancode)
     print("released", key, scancode)
