@@ -72,11 +72,16 @@ function Camera:getMousePosition()
 end
 
 function Camera:getMouseX()
-    return love.mouse.getX() + self.x
+    return love.mouse.getX() * self.scaleX + self.x
 end
 
 function Camera:getMouseY()
-    return love.mouse.getY() + self.y
+    return love.mouse.getY() * self.scaleY + self.y
+end
+
+function Camera:setScale(scaleX, scaleY)
+    self.scaleX = lume.clamp(scaleX, 1, 4)
+    self.scaleY = lume.clamp(scaleY, 1, 4)
 end
 
 return Camera()
