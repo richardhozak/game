@@ -1,3 +1,5 @@
+local lume = require("lib.lume")
+
 local Entity = require("entities.entity")
 local Item = Entity:extend()
 
@@ -12,7 +14,7 @@ function Item:update(dt)
 	local mouseX, mouseY = self.ui:getMousePosition()
 	local isMouseDown = self.ui:isMouseDown()
 	local items, len = self.world:queryPoint(mouseX, mouseY)
-	self.mouseOver = len > 0
+	self.mouseOver = lume.any(items, function(item) return item == self end)
 	self.isPressed = self.mouseOver and isMouseDown
 end
 

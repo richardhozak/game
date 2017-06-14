@@ -13,8 +13,6 @@ function love.load()
     timer = require("hump.enhancedtimer")()
     map = Map(2000, 1000)
     camera:setRegion(0, 0, map.width, map.height)
-
-    local width, height = love.graphics.getDimensions()
 end
 
 function love.update(dt)

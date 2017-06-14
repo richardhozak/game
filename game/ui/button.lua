@@ -30,7 +30,12 @@ function Button:draw()
 		love.graphics.setColor(255,255,255)
 	end
 	local centerX, centerY = self:getCenter()
-	love.graphics.print(self.text, centerX - self.font:getWidth(self.text) / 2, centerY - self.font:getHeight() / 2)
+	local text = type(self.text) == "function" and self.text() or self.text
+	local textX = centerX - self.font:getWidth(text) / 2
+	local textY = centerY - self.font:getHeight() / 2
+	textX = math.floor(textX)
+	textY = math.floor(textY)
+	love.graphics.print(text, textX, textY)
 end
 
 --[[
