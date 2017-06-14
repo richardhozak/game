@@ -15,18 +15,34 @@ local lastRow
 local axisDirection
 
 local dialogVisible
+local minimapVisible
+local debugVisible
+local helpVisible
+
+
 local mapName
 local saveDir
 local font
 
 local lastSavedMap
 
+local helpToggle = "h - toggle help"
 local help = [[
 right mouse - move map
 left mouse - draw tile
 mouse wheel - change tile
 1-9 key - select tile
 ctrl+s - save map
+ctrl+mwheel - zoom in/out
+m - toggle minimap
+~ - toggle debug info
+]]
+
+local debugInfo = [[
+camerax: %d, cameray: %d
+tilex: %d, tiley: %d
+mousex: %d, mousey: %d
+mousetx: %d, mousety: %d
 ]]
 
 local tiles = {
@@ -58,13 +74,18 @@ function love.load()
     mapName = ""
     saveDir = love.filesystem.getSaveDirectory()
     font = love.graphics.getFont()
+    minimapVisible = true
+    debugVisible = false
+    helpVisible = false
 end
 
 function love.update(dt)
     if love.mouse.isDown(2) then
         local mouseX, mouseY = love.mouse.getPosition()
-        local diffX = mouseX - beginX
-        local diffY = mouseY - beginY
+        mouseX = mouseX * camera.scaleX
+        mouseY = mouseY * camera.scaleY
+        local diffX = mouseX - beginX * camera.scaleX
+        local diffY = mouseY - beginY * camera.scaleX
         diffX = -diffX
         diffY = -diffY
         camera:setPosition(cameraX + diffX, cameraY + diffY)
@@ -277,6 +298,43 @@ local function drawMapBackground()
     love.graphics.rectangle("line", x, y, w, h)
 end
 
+local function drawDebug()
+    love.graphics.setColor(255,255,255)
+
+    love.graphics.print(string.format(debugInfo, camera.x, camera.y, 
+        math.floor(camera.x/tileSize), math.floor(camera.y/tileSize),
+        camera:getMouseX(), camera:getMouseY(),
+        math.floor(camera:getMouseX() / tileSize), math.floor(camera:getMouseY() / tileSize)))
+end
+
+local function drawMinimap(x, y, w, h, scale, camera)
+    local scale = scale > 0 and scale or 1
+    love.graphics.setScissor(x, y, w, h)
+    love.graphics.setColor(0,0,0,50)
+    love.graphics.rectangle("fill", x, y, w, h)
+    love.graphics.setColor(0,0,0,100)
+    love.graphics.rectangle("line", x, y, w, h)
+
+    local cameraWidth = camera.width / scale
+    local cameraHeight = camera.height / scale
+    local cameraX = (x+w/2)-cameraWidth/2
+    local cameraY = (y+h/2)-cameraHeight/2
+
+    love.graphics.push()
+    love.graphics.translate(cameraX, cameraY)
+    love.graphics.scale(1 / scale, 1 / scale)
+    love.graphics.translate(-camera.x, -camera.y)
+
+    drawWorld()
+
+    love.graphics.pop()
+
+    love.graphics.setColor(255,255,255)
+    love.graphics.rectangle("line", cameraX, cameraY, cameraWidth, cameraHeight)
+
+    love.graphics.setScissor()
+end
+
 function love.draw()
     camera:draw(function(x,y,w,h)
         drawBackground(x,y,w,h)
@@ -293,26 +351,51 @@ function love.draw()
 
     love.graphics.setColor(255,255,255,255)
     love.graphics.print("location: " .. saveDir, 0, height - font:getHeight())
-    love.graphics.printf(help, width - 200,0,200,"right")
+    
+
+    love.graphics.print(helpToggle, width - font:getWidth(helpToggle), 0)
+    if helpVisible then
+        love.graphics.printf(help, width - 200,font:getHeight(),200,"right")
+    end
 
     if not dialogVisible then
         local mapDisplay = "map: " .. mapName
         love.graphics.print(mapDisplay, width - font:getWidth(mapDisplay), height - font:getHeight())
     end
 
-    love.graphics.print(string.format("x: %d, y: %d", camera.x, camera.y))
+    if minimapVisible then
+        local minimapWidth = width / 4
+        local minimapHeight = minimapWidth * 0.75
+        drawMinimap(width-minimapWidth,height-minimapHeight, minimapWidth, minimapHeight, 10*camera.scaleX, camera)
+    end
+
+    if debugVisible then
+        drawDebug()
+    end
 end
 
 function love.wheelmoved(x, y)
-    if y > 0 then
-        local newIndex = selectedTileIndex - 1
-        if newIndex >= 1 then
-            selectedTileIndex = newIndex
+    if dialogVisible then
+        return
+    end
+
+    if love.keyboard.isDown("lctrl") then
+        if y > 0 then
+            camera:setScale(camera.scaleX - 1, camera.scaleY - 1)
+        elseif y < 0 then
+            camera:setScale(camera.scaleX + 1, camera.scaleY + 1)
         end
-    elseif y < 0 then
-        local newIndex = selectedTileIndex + 1
-        if newIndex <= #tiles then
-            selectedTileIndex = newIndex
+    else
+        if y > 0 then
+            local newIndex = selectedTileIndex - 1
+            if newIndex >= 1 then
+                selectedTileIndex = newIndex
+            end
+        elseif y < 0 then
+            local newIndex = selectedTileIndex + 1
+            if newIndex <= #tiles then
+                selectedTileIndex = newIndex
+            end
         end
     end
 end
@@ -385,23 +468,20 @@ local function loadWorld(name)
         local chunk = love.filesystem.load(name)
         map = chunk()
     else
-        return nil
+        return world, {
+            x=0,
+            y=0,
+            width=0,
+            height=0,
+            items={}
+        }
     end
 
-    local items
-    if map.version then
-        items = map.items
-    else
-        items = map
-    end
-
-    for index, item in ipairs(items) do
-        if map.version then
-            item.index = item.tile
-            item.tile = nil
-            item.x = item.x * tileSize
-            item.y = item.y * tileSize
-        end
+    for index, item in ipairs(map.items) do
+        item.index = item.tile
+        item.tile = nil
+        item.x = item.x * tileSize
+        item.y = item.y * tileSize
         world:add(item, item.x, item.y, tileSize, tileSize)
     end
 
@@ -479,7 +559,6 @@ function love.keypressed(key, scancode, isrepeat)
     if love.keyboard.isDown("lctrl") then
         if key == "s" then
             saveWorld()
-            --[[
         elseif key == "n" then
             print("normalizing map")
             local items, len = normalizeMap()
@@ -488,12 +567,23 @@ function love.keypressed(key, scancode, isrepeat)
                 local item = items[i]
                 world:add(item, item.x, item.y, tileSize, tileSize)
             end
-            --]]
         end
     end
 
     if num and num >= 1 and num <= #tiles then
         selectedTileIndex = num
+    end
+
+    if key == "m" then
+        minimapVisible = not minimapVisible
+    end
+
+    if scancode == "`" then
+        debugVisible = not debugVisible
+    end
+
+    if key == "h" then
+        helpVisible = not helpVisible
     end
 end
 
