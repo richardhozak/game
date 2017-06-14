@@ -7,12 +7,25 @@ local ui = require("ui.ui")
 
 local map, dialog
 
+
+local function loadLevel(levelname)
+    local mapfunction, errormsg = love.filesystem.load("maps/"..levelname)
+    if errormsg then
+        error("could not load map", levelname)
+    else
+        print("loading", levelname)
+        map = Map(mapfunction())
+        camera:setRegion(map.x, map.y, map.width, map.height)
+    end
+end
+
 function love.load()
-    love.window.setMode(800, 600, {x=1120, y=25})
+    love.window.setMode(800, 600, {x=1120, y=25, resizable=true})
     
     timer = require("hump.enhancedtimer")()
-    map = Map(2000, 1000)
+    map = Map(nil, 2000, 1000)
     camera:setRegion(0, 0, map.width, map.height)
+    ui:setLoadLevelCallback(loadLevel)
 end
 
 function love.update(dt)

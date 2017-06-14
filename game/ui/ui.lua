@@ -26,7 +26,7 @@ function recursiveEnumerate(folder, fileTree)
     return fileTree
 end
 
-function testOne(text)
+local function testOne(text)
     print(text)
     return function (textTwo) print(textTwo) end
 end
@@ -43,85 +43,83 @@ function Ui:new()
 
     self.selectedLevel = nil
 
+    self.loadLevelCallback = nil
+
     Button(self, self.pauseMenu, 0,0,100,50, {
-        color={246,36,89}, 
-        text="Resume",
-        onPressed=function() 
-            print("resume pressed") 
-        end
+            color={246,36,89}, 
+            text="Resume",
+            onClicked=function() self.displayMenu = false end
         }
     )
 
     Button(self, self.pauseMenu, 0,100,100,50, {
-        color={246,36,89}, 
-        text="Load",
-        onPressed=function() 
-            print("load pressed") 
-            self.test = "Load"
-        end
+            color={246,36,89}, 
+            text="Load",
+            onClicked=function() self:displayLevelMenu() end
         }
     )
 
     Button(self, self.pauseMenu, 0,200,100,50, {
-        color={246,36,89}, 
-        text="Exit",
-        onPressed=function() 
-            print("exit pressed") 
-        end
+            color={246,36,89}, 
+            text="Exit",
+            onClicked=love.event.quit
         }
     )
 
 
     Button(self, self.mainMenu, 0,0,100,50, {
-        color={246,36,89}, 
-        text="Load",
-        onPressed=function() 
-            print("loading levels")
-            self.levelMenu = bump.newWorld()
-            local dir = "/maps"
-            local files = love.filesystem.getDirectoryItems(dir)
-            local i=0
-            for k,v in ipairs(files) do
-                if (love.filesystem.isFile(dir .. "/" .. v)) then
-                    Button(self, self.levelMenu, 0, i*100, 100, 50, {
-                        color={25,181,254}, 
-                        text=v,
-                        onPressed=function() 
-                            print("loading", v) 
-                        end
-                        })
-                    i = i+1
+            color={246,36,89}, 
+            text="Load",
+            onClicked=function() return self:displayLevelMenu() end
+        }
+    )
+
+    Button(self, self.mainMenu, 0,60,100,50, {
+            color={246,36,89}, 
+            text="Exit",
+            onClicked=love.event.quit
+        }
+    )
+end
+
+function Ui:setLoadLevelCallback(callback)
+    self.loadLevelCallback = callback
+end
+
+function Ui:displayLevelMenu()
+    print("loading levels")
+    self.levelMenu = bump.newWorld()
+    local dir = "/maps"
+    local files = love.filesystem.getDirectoryItems(dir)
+    local i=0
+    for k,v in ipairs(files) do
+        if (love.filesystem.isFile(dir .. "/" .. v)) then
+            Button(self, self.levelMenu, 0, i*60, 100, 50, {
+                color={25,181,254}, 
+                text=v,
+                onClicked=function() 
+                    self:loadLevelFile(v)
                 end
-            end
-
-            Button(self, self.levelMenu, 0, i*100, 100, 50, {
-                        color={246,36,89}, 
-                        text="Back",
-                        onPressed=function() 
-                            self.loadLevel = false
-                        end
-                        })
-
-            self.loadLevel = true
+                })
+            i = i+1
         end
-        }
-    )
+    end
 
-    Button(self, self.mainMenu, 0,100,100,50, {
-        color={246,36,89}, 
-        text="Exit",
-        onPressed=function() 
-            print("save", love.filesystem.getSaveDirectory())
-            local file, success = love.filesystem.newFile("test", "w")
-            if file then
-                print("writing")
-                file:write("asd")
-                file:close()
-            end
-            love.event.quit()
-        end
-        }
-    )
+    Button(self, self.levelMenu, 0, i*60, 100, 50, {
+                color={246,36,89}, 
+                text="Back",
+                onClicked=function() 
+                    self.loadLevel = false
+                end
+                })
+
+    self.loadLevel = true
+end
+
+function Ui:loadLevelFile(file)
+    if self.loadLevelCallback then
+        self.loadLevelCallback(file)
+    end
 end
 
 function Ui:update(dt)

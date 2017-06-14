@@ -4,10 +4,8 @@ local util = require("util")
 local Player = Entity:extend()
 
 local speed = 500
-local width = 32
-local height = 32
 
-function Player:new(map, world, x, y)
+function Player:new(map, world, x, y, width, height)
     Player.super.new(self, world, x, y, width, height)
 end
 

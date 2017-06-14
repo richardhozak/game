@@ -9,6 +9,7 @@ function Button:new(ui, world, x, y, width, height, options)
     self.text = options.text
     self.pressedEmitted = false
     self.onPressed = options.onPressed
+    self.onClicked = options.onClicked
     self.font = love.graphics.getFont()
 end
 
@@ -17,9 +18,14 @@ function Button:update(dt)
 	if self.isPressed then
 		if not self.pressedEmitted then
 			self.pressedEmitted = true
-			self.onPressed()
+			if type(self.onPressed) == "function" then
+				self.onPressed()
+			end
 		end
 	else
+		if self.pressedEmitted and type(self.onClicked) == "function" then
+			self.onClicked()
+		end
 		self.pressedEmitted = false
 	end
 end
