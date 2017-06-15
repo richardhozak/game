@@ -1,10 +1,11 @@
 local lume = require("lib.lume")
 
-local Entity = require("entities.entity")
-local Item = Entity:extend()
+local Object = require("lib.classic")
+local Item = Object:extend()
 
-function Item:new(ui, world, x, y, width, height)
-	Item.super.new(self, world, x, y, width, height)
+function Item:new(ui, x, y, width, height)
+	self.x, self.y = x, y
+	self.width, self.height = width, height
 	self.ui = ui
 	self.mouseOver = false
 	self.isPressed = false
@@ -13,12 +14,20 @@ end
 function Item:update(dt)
 	local mouseX, mouseY = self.ui:getMousePosition()
 	local isMouseDown = self.ui:isMouseDown()
-	local items, len = self.world:queryPoint(mouseX, mouseY)
-	self.mouseOver = lume.any(items, function(item) return item == self end)
+	self.mouseOver = self:containsMouse(mouseX, mouseY)
 	self.isPressed = self.mouseOver and isMouseDown
 end
 
+function Item:containsMouse(x, y)
+	return (x >= self.x and x <= self.x + self.width) and (y >= self.y and y <= self.y + self.height)
+end
+
 function Item:draw()
+end
+
+function Item:getCenter()
+    return self.x + self.width / 2, 
+           self.y + self.height / 2
 end
 
 return Item

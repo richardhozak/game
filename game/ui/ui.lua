@@ -1,5 +1,3 @@
-local bump = require("lib.bump")
-
 local Button = require("ui.button")
 
 local Object = require("lib.classic")
@@ -32,9 +30,9 @@ local function testOne(text)
 end
 
 function Ui:new()
-    self.pauseMenu = bump.newWorld()
-    self.mainMenu = bump.newWorld()
-    self.levelMenu = bump.newWorld()
+    self.pauseMenu = {}
+    self.mainMenu = {}
+    self.levelMenu = {}
     self.currentMenu = nil
 
     self.displayMenu = true
@@ -45,41 +43,54 @@ function Ui:new()
 
     self.loadLevelCallback = nil
 
-    Button(self, self.pauseMenu, 0,0,100,50, {
+    local item = nil
+
+    -- pausemenu
+    item = Button(self, 0,0,100,50, {
             color={246,36,89}, 
             text="Resume",
             onClicked=function() self.displayMenu = false end
         }
     )
 
-    Button(self, self.pauseMenu, 0,100,100,50, {
+    table.insert(self.pauseMenu, item)
+
+    item = Button(self, 0,100,100,50, {
             color={246,36,89}, 
             text="Load",
             onClicked=function() self:displayLevelMenu() end
         }
     )
 
-    Button(self, self.pauseMenu, 0,200,100,50, {
+    table.insert(self.pauseMenu, item)
+
+    item = Button(self, 0,200,100,50, {
             color={246,36,89}, 
             text="Exit",
             onClicked=love.event.quit
         }
     )
 
+    table.insert(self.pauseMenu, item)
 
-    Button(self, self.mainMenu, 0,0,100,50, {
+    -- mainmenu
+    item = Button(self, 0,0,100,50, {
             color={246,36,89}, 
             text="Load",
             onClicked=function() return self:displayLevelMenu() end
         }
     )
 
-    Button(self, self.mainMenu, 0,60,100,50, {
+    table.insert(self.mainMenu, item)
+
+    item = Button(self, 0,60,100,50, {
             color={246,36,89}, 
             text="Exit",
             onClicked=love.event.quit
         }
     )
+
+    table.insert(self.mainMenu, item)
 end
 
 function Ui:setLoadLevelCallback(callback)
@@ -88,13 +99,13 @@ end
 
 function Ui:displayLevelMenu()
     print("loading levels")
-    self.levelMenu = bump.newWorld()
+    self.levelMenu = {}
     local dir = "/maps"
     local files = love.filesystem.getDirectoryItems(dir)
     local i=0
     for k,v in ipairs(files) do
         if (love.filesystem.isFile(dir .. "/" .. v)) then
-            Button(self, self.levelMenu, 0, i*60, 100, 50, {
+            local item = Button(self, 0, i*60, 100, 50, {
                 color={25,181,254}, 
                 text=v,
                 onClicked=function() 
@@ -102,10 +113,11 @@ function Ui:displayLevelMenu()
                 end
                 })
             i = i+1
+            table.insert(self.levelMenu, item)
         end
     end
 
-    Button(self, self.levelMenu, 0, i*60, 100, 50, {
+    local item = Button(self, 0, i*60, 100, 50, {
                 color={246,36,89}, 
                 text="Back",
                 onClicked=function() 
@@ -113,6 +125,7 @@ function Ui:displayLevelMenu()
                 end
                 })
 
+    table.insert(self.levelMenu, item)
     self.loadLevel = true
 end
 
@@ -134,9 +147,8 @@ function Ui:update(dt)
     end
 
     if self.currentMenu then
-        local elements, len = self.currentMenu:getItems()
-        for i=1, len do
-            elements[i]:update(dt)
+        for i,item in ipairs(self.currentMenu) do
+            item:update(dt)
         end
     end
 
@@ -157,9 +169,8 @@ end
 
 function Ui:draw(x, y, width, height)
     if self.currentMenu then
-        local elements, len = self.currentMenu:getItems()
-        for i=1, len do
-            elements[i]:draw()
+        for i,item in ipairs(self.currentMenu) do
+            item:draw()
         end
     end
 end

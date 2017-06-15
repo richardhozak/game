@@ -23,8 +23,6 @@ function love.load()
     love.window.setMode(800, 600, {x=1120, y=25, resizable=true})
     
     timer = require("hump.enhancedtimer")()
-    map = Map(nil, 2000, 1000)
-    camera:setRegion(0, 0, map.width, map.height)
     ui:setLoadLevelCallback(loadLevel)
 end
 
@@ -32,7 +30,7 @@ function love.update(dt)
     lurker.update()
     lovebird.update()
     
-    if not ui.isPaused then
+    if not ui.isPaused and map then
         map:update(dt)
         timer:update(dt)
         camera:update(dt)
@@ -43,9 +41,11 @@ function love.update(dt)
 end
 
 function love.draw()
-    camera:draw(function(x,y,w,h) 
-        map:draw(x,y,w,h)
-    end)
+    if map then
+        camera:draw(function(x,y,w,h) 
+            map:draw(x,y,w,h)
+        end)
+    end
 
     local width, height = love.graphics.getDimensions()
 

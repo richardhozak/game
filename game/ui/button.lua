@@ -3,8 +3,8 @@ local util = require("util")
 local Item = require("ui.item")
 local Button = Item:extend()
 
-function Button:new(ui, world, x, y, width, height, options)
-    Button.super.new(self, ui, world, x, y, width, height)
+function Button:new(ui, x, y, width, height, options)
+    Button.super.new(self, ui, x, y, width, height)
     self.color = options.color
     self.text = options.text
     self.pressedEmitted = false
@@ -23,7 +23,7 @@ function Button:update(dt)
 			end
 		end
 	else
-		if self.pressedEmitted and type(self.onClicked) == "function" then
+		if self.pressedEmitted and type(self.onClicked) == "function" and self.mouseOver then
 			self.onClicked()
 		end
 		self.pressedEmitted = false
@@ -34,7 +34,12 @@ function Button:draw()
 	util.drawFilledRectangle(self.x, self.y, self.width, self.height, unpack(self.color))
 	if self.isPressed then
 		love.graphics.setColor(255,255,255)
+	elseif self.mouseOver then
+		love.graphics.setColor(255,255,255,20)
+		love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
+		love.graphics.setColor(255,255,255)
 	end
+	
 	local centerX, centerY = self:getCenter()
 	local text = type(self.text) == "function" and self.text() or self.text
 	local textX = centerX - self.font:getWidth(text) / 2
