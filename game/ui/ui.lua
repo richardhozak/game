@@ -30,67 +30,57 @@ local function testOne(text)
 end
 
 function Ui:new()
-    self.pauseMenu = {}
-    self.mainMenu = {}
+    self.state = "main"
+
     self.levelMenu = {}
     self.currentMenu = nil
 
-    self.displayMenu = true
-    self.isPaused = false
-    self.loadLevel = false
-
     self.selectedLevel = nil
-
     self.loadLevelCallback = nil
+    self.enterEditorCallback = nil
 
-    local item = nil
-
-    -- pausemenu
-    item = Button(self, 0,0,100,50, {
+    self.pauseMenu = {
+        Button(self, 100, 50, {
             color={246,36,89}, 
             text="Resume",
             onClicked=function() self.displayMenu = false end
-        }
-    )
-
-    table.insert(self.pauseMenu, item)
-
-    item = Button(self, 0,100,100,50, {
+        }),
+        Button(self, 100, 50, {
             color={246,36,89}, 
             text="Load",
             onClicked=function() self:displayLevelMenu() end
-        }
-    )
-
-    table.insert(self.pauseMenu, item)
-
-    item = Button(self, 0,200,100,50, {
+        }),
+        Button(self, 100, 50, {
             color={246,36,89}, 
-            text="Exit",
-            onClicked=love.event.quit
-        }
-    )
+            text="Main Menu",
+            onClicked=function() 
+                self.state = "main"
+                self:loadLevelFile(nil)
+            end
+        })
+    }
 
-    table.insert(self.pauseMenu, item)
-
-    -- mainmenu
-    item = Button(self, 0,0,100,50, {
+    self.mainMenu = {
+        Button(self, 100, 50, {
+            color={246,36,89}, 
+            text="Editor",
+            onClicked=function() return self:enterEditor() end
+        }),
+        Button(self, 100, 50, {
             color={246,36,89}, 
             text="Load",
             onClicked=function() return self:displayLevelMenu() end
-        }
-    )
-
-    table.insert(self.mainMenu, item)
-
-    item = Button(self, 0,60,100,50, {
+        }),
+        Button(self, 100, 50, {
             color={246,36,89}, 
             text="Exit",
             onClicked=love.event.quit
-        }
-    )
+        })
+    }
+end
 
-    table.insert(self.mainMenu, item)
+function Ui:setEnterEditorCallback(callback)
+    self.enterEditorCallback = callback
 end
 
 function Ui:setLoadLevelCallback(callback)
@@ -100,12 +90,12 @@ end
 function Ui:displayLevelMenu()
     print("loading levels")
     self.levelMenu = {}
-    local dir = "/maps"
+    local dir = "maps"
     local files = love.filesystem.getDirectoryItems(dir)
     local i=0
     for k,v in ipairs(files) do
         if (love.filesystem.isFile(dir .. "/" .. v)) then
-            local item = Button(self, 0, i*60, 100, 50, {
+            local item = Button(self, 100, 50, {
                 color={25,181,254}, 
                 text=v,
                 onClicked=function() 
@@ -117,33 +107,39 @@ function Ui:displayLevelMenu()
         end
     end
 
-    local item = Button(self, 0, i*60, 100, 50, {
+    local item = Button(self, 100, 50, {
                 color={246,36,89}, 
                 text="Back",
                 onClicked=function() 
-                    self.loadLevel = false
+                    self.state = "main"
                 end
                 })
 
     table.insert(self.levelMenu, item)
-    self.loadLevel = true
+    self.state = "load"
+end
+
+function Ui:enterEditor()
+    if type(self.enterEditorCallback) == "function" then
+        self.enterEditorCallback()
+    end
 end
 
 function Ui:loadLevelFile(file)
-    if self.loadLevelCallback then
+    if type(self.loadLevelCallback) == "function" then
         self.loadLevelCallback(file)
     end
 end
 
 function Ui:update(dt)
-    if self.displayMenu then
-        if self.isPaused then
-            self.currentMenu = self.pauseMenu
-        elseif self.loadLevel then
-            self.currentMenu = self.levelMenu
-        else
-            self.currentMenu = self.mainMenu
-        end
+    if self.state == "main" then
+        self.currentMenu = self.mainMenu
+    elseif self.state == "pause" then
+        self.currentMenu = self.pauseMenu
+    elseif self.state == "load" then
+        self.currentMenu = self.levelMenu
+    else
+        self.currentMenu = nil
     end
 
     if self.currentMenu then
@@ -168,28 +164,30 @@ function Ui:isMouseDown()
 end
 
 function Ui:draw(x, y, width, height)
+    local yOffset = 50
     if self.currentMenu then
         for i,item in ipairs(self.currentMenu) do
+            local y = yOffset + (i-1)*70
+            item.y = y
+            item.x = (x+width-item.width)/2
             item:draw()
         end
     end
 end
 
-function Ui.onPaused()
-    if self.paused then
-    else
+function Ui:canPause()
+end
+
+function Ui:pauseResume()
+    if self.state == "none" then
+        self.state = "pause"
+    elseif self.state == "pause" then
+        self.state = "none"
     end
 end
 
 function Ui:getPaused()
-    return self.paused
-end
-
-function Ui:setPaused(paused)
-    if self.paused ~= paused then
-        self.paused = paused
-        self.onPaused()
-    end
+    return self.state == "pause"
 end
 
 return Ui()

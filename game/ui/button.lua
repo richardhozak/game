@@ -3,8 +3,8 @@ local util = require("util")
 local Item = require("ui.item")
 local Button = Item:extend()
 
-function Button:new(ui, x, y, width, height, options)
-    Button.super.new(self, ui, x, y, width, height)
+function Button:new(ui, width, height, options)
+    Button.super.new(self, ui, width, height)
     self.color = options.color
     self.text = options.text
     self.pressedEmitted = false

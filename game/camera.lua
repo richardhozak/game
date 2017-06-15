@@ -22,20 +22,39 @@ function Camera:new()
     self.realMaxY = 0
     self.realMinX = 0
     self.realMinY = 0
+    self.followPlayer = true
 end
 
 function Camera:update(dt)
     self.width = love.graphics.getWidth() * self.scaleX
     self.height = love.graphics.getHeight() * self.scaleY
 
-    timer:tween("roomBounds", 0.2, self, 
+    if self.followPlayer then
+        timer:tween("roomBounds", 0.2, self, 
         {x = lume.clamp(self.posX - self.width / 2, self.realMinX, self.realMaxX),
         y = lume.clamp(self.posY - self.height / 2, self.realMinY, self.realMaxY),
         realMaxX=self.region.x + self.region.width - self.width,
         realMinX=self.region.x,
         realMaxY=self.region.y + self.region.height - self.height, 
-        realMinY=self.region.y}, 
-        "linear")
+        realMinY=self.region.y}, "linear")
+    else
+        self.realMaxX = self.region.width - self.width
+        self.realMaxY = self.region.height - self.height
+
+        self.x = self.posX --lume.clamp(self.posX, 0, self.realMaxX)
+        self.y = self.posY --lume.clamp(self.posY, 0, self.realMaxY)
+    end
+
+    
+
+    --[[
+    self.x = lume.clamp(self.posX - self.width / 2, self.realMinX, self.realMaxX)
+    self.y = lume.clamp(self.posY - self.height / 2, self.realMinY, self.realMaxY)
+    self.realMaxX = self.region.x + self.region.width - self.width
+    self.realMinX = self.region.x
+    self.realMaxY = self.region.y + self.region.height - self.height
+    self.realMinY = self.region.y
+    --]]
 end
 
 function Camera:draw(func)
@@ -65,11 +84,16 @@ function Camera:getMousePosition()
 end
 
 function Camera:getMouseX()
-    return love.mouse.getX() + self.x
+    return love.mouse.getX() * self.scaleX + self.x
 end
 
 function Camera:getMouseY()
-    return love.mouse.getY() + self.y
+    return love.mouse.getY() * self.scaleY + self.y
+end
+
+function Camera:setScale(scaleX, scaleY)
+    self.scaleX = lume.clamp(scaleX, 1, 4)
+    self.scaleY = lume.clamp(scaleY, 1, 4)
 end
 
 return Camera()

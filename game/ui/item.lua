@@ -3,8 +3,8 @@ local lume = require("lib.lume")
 local Object = require("lib.classic")
 local Item = Object:extend()
 
-function Item:new(ui, x, y, width, height)
-	self.x, self.y = x, y
+function Item:new(ui, width, height)
+	self.x, self.y = 0, 0
 	self.width, self.height = width, height
 	self.ui = ui
 	self.mouseOver = false
