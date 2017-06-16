@@ -1,12 +1,16 @@
-local Entity = require("entities.entity")
 local util = require("util")
+
+local Weapon = require("entities.weapon")
+local Entity = require("entities.entity")
 
 local Player = Entity:extend()
 
-local speed = 500
+local speed = 300
 
-function Player:new(map, world, x, y, width, height)
+function Player:new(map, world, camera, x, y, width, height)
     Player.super.new(self, world, x, y, width, height)
+    self.camera = camera
+    self.weapon = Weapon(self, self.world, self.camera)
 end
 
 function Player:update(dt)
@@ -31,11 +35,18 @@ function Player:update(dt)
     local x, y, cols, len = self.world:move(self, x, y)
 
     self.x, self.y = x, y
+
+    self.weapon:update(dt)
 end
 
 function Player:draw()
     local x, y = self:getCenter()
     util.drawFilledCircle(x, y, self.width / 2, 38, 166, 91)
+    self.weapon:draw()
+end
+
+function Player:hit()
+    print("hit")
 end
 
 return Player

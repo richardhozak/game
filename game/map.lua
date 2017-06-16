@@ -5,38 +5,31 @@ local Block = require("entities.block")
 
 local Map = Object:extend()
 
-function Map:new(map, width, height)
+function Map:new(map, camera)
     self.map = map
     self.tileSize = 50
-    if self.map then
-        self.x, self.y = self.map.x*self.tileSize, self.map.y*self.tileSize
-        self.width, self.height = self.map.width*self.tileSize, self.map.height*self.tileSize
-    else
-        self.x, self.y = 0
-        self.width, self.height = width, height
-    end
+    self.x, self.y = self.map.x*self.tileSize, self.map.y*self.tileSize
+    self.width, self.height = self.map.width*self.tileSize, self.map.height*self.tileSize
+    self.camera = camera
     self:reset()
 end
 
 function Map:reset()
-    if not self.map then
-        self:loadDefault()
-        return
-    end
-    
     print("resetting map")
     self.world = bump.newWorld(50)
     self.player = nil
 
     for index,item in ipairs(self.map.items) do
         if item.tile == 5 and not self.player then
-            self.player = Player(self, self.world, item.x*self.tileSize, item.y*self.tileSize, 32, 32)
+            self.player = Player(self, self.world, self.camera, item.x*self.tileSize, item.y*self.tileSize, 32, 32)
         else
             if item.tile ~= 4 then
                 Block(self.world, item.x*self.tileSize, item.y*self.tileSize, self.tileSize, self.tileSize)
             end
         end
     end
+
+    self.camera:setRegion(self.x, self.y, self.width, self.height)
 end
 
 function Map:loadDefault()

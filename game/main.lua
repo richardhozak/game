@@ -21,8 +21,7 @@ local function loadLevel(levelname)
         error("could not load map", levelname)
     else
         print("loading", levelname)
-        map = Map(mapfunction())
-        camera:setRegion(map.x, map.y, map.width, map.height)
+        map = Map(mapfunction(), camera)
         ui.state = "none"
     end
 end
@@ -108,7 +107,9 @@ function love.keypressed(key, scancode, isrepeat)
             editor:keyPressed(key, scancode)
         end
     else
-        if key == "escape" then
+        if key == "r" and ui.state == "main" then
+            love.event.quit("restart")
+        elseif key == "escape" then
             ui:pauseResume()
         end
     end
