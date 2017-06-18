@@ -14,7 +14,8 @@ function Weapon:new(player, world, camera)
 	self.rotation = 0
 	self.offset = self.player.width / 2 - 10
 	self.timeShotTimer = 0
-	self.timeBetweenShots = 2 * 1000 * 1000
+	self.timeBetweenShots = 4 * 1000
+	self.shooting = false
 end
 
 function Weapon:update(dt)
@@ -26,7 +27,7 @@ function Weapon:update(dt)
 
 	self.rotation = math.atan2(deltaY, deltaX)
 
-	if love.mouse.isDown(1) and self.timeShotTimer <= 0 then
+	if self.shooting and self.timeShotTimer <= 0 then
 		self.timeShotTimer = self.timeBetweenShots
 		self:fire()
 	end
@@ -43,6 +44,18 @@ function Weapon:draw()
 	love.graphics.translate(self.offset, -(self.height/2))
 	love.graphics.rectangle("fill", 0, 0, self.width, self.height)
 	love.graphics.pop()
+end
+
+function Weapon:mousepressed(button)
+    if button == 1 then
+        self.shooting = true
+    end
+end
+
+function Weapon:mousereleased(button)
+    if button == 1 then
+        self.shooting = false
+    end
 end
 
 function Weapon:fire()
