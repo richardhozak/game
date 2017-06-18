@@ -5,10 +5,12 @@ local Map = require("map")
 local Dialog = require("ui.dialog")
 local ui = require("ui.ui")
 local Editor = require("editor")
+local nk = require("nuklear")
+local calculator = require("calculator")
 
 local map, dialog
 local editor
-local editorEnabled
+local menu
 
 local function loadLevel(levelname)
     if not levelname then
@@ -22,49 +24,104 @@ local function loadLevel(levelname)
     else
         print("loading", levelname)
         map = Map(mapfunction(), camera)
-        ui.state = "none"
+        menu = "game"
     end
 end
 
-local function enterEditor()
-    editor:reset()
-    editorEnabled = true
-end
-
 function love.load()
-    love.window.setMode(800, 600, {x=1120, y=25, resizable=true})
+    love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
     
     timer = require("hump.enhancedtimer")()
     ui:setLoadLevelCallback(loadLevel)
     ui:setEnterEditorCallback(enterEditor)
     editor = Editor(camera)
+    nk.init()
+    menu = "main"
+end
+
+local function updateLevelUi()
+    local width, height = love.graphics.getDimensions()
+    local menuWidth, menuHeight = 200, 400
+    local menuYOffset = 50
+    local menuXOffset = (width-menuWidth)/2
+
+    if nk.windowBegin("Levels", menuXOffset, menuYOffset, menuWidth, menuHeight, "title", "scrollbar") then
+        nk.layoutRow("dynamic", 35, 1)
+        local files = love.filesystem.getDirectoryItems("maps")
+        for index, file in ipairs(files) do
+            if nk.button(file) then
+                loadLevel(file)
+            end
+        end
+
+        if nk.button("Back") then
+            menu = "main"
+        end
+    end
+    nk.windowEnd()
+end
+
+local function updateMainMenuUi()
+    local width, height = love.graphics.getDimensions()
+    local menuWidth, menuHeight = 200, 400
+    local menuYOffset = 50
+    local menuXOffset = (width-menuWidth)/2
+
+    if nk.windowBegin("Menu", menuXOffset, menuYOffset, menuWidth, menuHeight, "title") and menu == "main" then
+        nk.layoutRow("dynamic", 35, 1)
+        if nk.button("Editor") then
+            editor:reset()
+            menu = "editor"
+        end
+        if nk.button("Load level") then
+            menu = "levels"
+        end
+        if nk.button("Exit") then
+            love.event.quit()
+        end
+    end
+    nk.windowEnd()
 end
 
 function love.update(dt)
     lurker.update()
     lovebird.update()
 
-    camera.followPlayer = not editorEnabled
+    camera.followPlayer = menu ~= "editor"
 
-    if editorEnabled then
+    if menu == "editor" then
         if editor:update(dt) then
             camera:update(dt)
         end
     else
         if map then
-            if not ui:getPaused() then
+            if menu == "game" then
                 map:update(dt)
                 timer:update(dt)
                 camera:update(dt)
                 camera:setPosition(map.player:getCenter())
             end
         end
-        ui:update(dt)
     end
+
+    nk.frameBegin()
+        if menu == "main" then
+            updateMainMenuUi()            
+        elseif menu == "levels" then
+            updateLevelUi()
+        elseif menu == "editor" then
+            editor:updateUi()
+        elseif map then
+            local uimenu = map:updateUi()
+            if uimenu then
+                menu = uimenu
+            end
+        end
+    nk.frameEnd()
 end
 
 function love.draw()
-    if editorEnabled then
+    if menu == "editor" then
         camera:draw(function(x,y,w,h)
             editor:draw(x, y, w, h)
         end)
@@ -75,49 +132,67 @@ function love.draw()
             camera:draw(function(x,y,w,h) 
                 map:draw(x,y,w,h)
             end)
+
         end
-        local width, height = love.graphics.getDimensions()
-        ui:draw(0, 0, width, height)
+    end
+
+    nk.draw()
+end
+
+function love.keypressed(key, scancode, isrepeat)
+    if nk.keypressed(key, scancode, isrepeat) then
+        return
+    end
+
+    if map then
+        map:keypressed(key, scancode, isrepeat)
     end
 end
 
-function love.wheelmoved(x, y)
-    if editorEnabled then
-        editor:wheelMoved(x, y)
+function love.keyreleased(key, scancode)
+    if nk.keyreleased(key, scancode) then
+        return
+    end
+
+    if map then
+        map:keyreleased(key, scancode)
     end
 end
 
 function love.mousepressed(x, y, button, istouch)
-    if editorEnabled then
-        editor:mousePressed(x, y, button)
+    if nk.mousepressed(x, y, button, istouch) then
+        return
+    end
+
+    if map then
+        map:mousepressed(x, y, button, istouch)
     end
 end
 
 function love.mousereleased(x, y, button, istouch)
-    if editorEnabled then
-        editor:mouseReleased(x, y, button)
+    if nk.mousereleased(x, y, button, istouch) then
+        return
+    end
+
+    if map then
+        map:mousereleased(x, y, button, istouch)
     end
 end
 
-function love.keypressed(key, scancode, isrepeat)
-    if editorEnabled then
-        if key == "escape" then
-            editorEnabled = false
-        else
-            editor:keyPressed(key, scancode)
-        end
-    else
-        if key == "r" and ui.state == "main" then
-            love.event.quit("restart")
-        elseif key == "escape" then
-            ui:pauseResume()
-        end
+function love.mousemoved(x, y, dx, dy, istouch)
+    if nk.mousemoved(x, y, dx, dy, istouch) then
+        return
     end
 end
 
+function love.textinput(text)
+    if nk.textinput(text) then
+        return 
+    end
+end
 
-function love.keyreleased(key, scancode)
-    if editorEnabled then
-        editor:keyReleased(key, scancode)
+function love.wheelmoved(x, y)
+    if nk.wheelmoved(x, y) then
+        return
     end
 end

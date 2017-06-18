@@ -3,6 +3,8 @@ local bump = require("lib.bump")
 local Player = require("entities.player")
 local Block = require("entities.block")
 
+local nk = require("nuklear")
+
 local Map = Object:extend()
 
 function Map:new(map, camera)
@@ -11,6 +13,7 @@ function Map:new(map, camera)
     self.x, self.y = self.map.x*self.tileSize, self.map.y*self.tileSize
     self.width, self.height = self.map.width*self.tileSize, self.map.height*self.tileSize
     self.camera = camera
+    self.paused = false
     self:reset()
 end
 
@@ -57,6 +60,10 @@ function Map:loadDefault()
 end
 
 function Map:update(dt, x, y, width, height)
+    if self.paused then
+        return
+    end
+
     local items, len = self.world:getItems()
     for i=1, len do
         items[i]:update(dt)
@@ -68,6 +75,48 @@ function Map:draw(x, y, width, height)
     for i=1, len do
         items[i]:draw()
     end
+end
+
+function Map:updateUi()
+    if self.paused then
+        local width, height = love.graphics.getDimensions()
+        local windowWidth = 200
+        local windowHeight = 140
+        local windowOffsetY = 50
+        local windowOffsetX = (width-windowWidth)/2
+
+        if nk.windowBegin("Pause", windowOffsetX, windowOffsetY, windowWidth, windowHeight, "title") then
+            nk.layoutRow("dynamic", 35, 1)
+            if nk.button("Resume") then
+                self.paused = false
+            end
+            if nk.button("Main menu") then
+                return "main"
+            end
+        end
+        nk.windowEnd()
+    end
+end
+
+function Map:keypressed(key, scancode, isrepeat)
+    if key == "escape" then
+        self.paused = not self.paused
+        return
+    end
+
+    self.player:keypressed(key, scancode, isrepeat)
+end
+
+function Map:keyreleased(key, scancode)
+    self.player:keyreleased(key, scancode)
+end
+
+function Map:mousepressed(x, y, button, istouch)
+    self.player:mousepressed(button)
+end
+
+function Map:mousereleased(x, y, button, istouch)
+    self.player:mousereleased(button)
 end
 
 return Map

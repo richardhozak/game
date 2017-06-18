@@ -2,6 +2,7 @@ local util = require("util")
 local bump = require("lib.bump")
 local luatable = require("lib.LuaTable")
 local bump_debug = require("lib.bump_debug")
+local nk = require("nuklear")
 
 local Object = require("lib.classic")
 local Editor = Object:extend()
@@ -71,6 +72,9 @@ function Editor:reset()
     self.mouse.y = 0
     self.mouse.left = false
     self.mouse.right = false
+
+    self.mapNameTable = {}
+    self.mapNameTable.value = ""
 end
 
 function Editor:update(dt)
@@ -370,6 +374,34 @@ function Editor:drawDebugInfo()
         math.floor(self.camera:getMouseX() / self.tileSize), math.floor(self.camera:getMouseY() / self.tileSize)))
 end
 
+function Editor:updateUi()
+    local screenWidth, screenHeight = love.graphics.getDimensions()
+
+    if self.visibility.prompt then
+        local width = 300
+        local height = 80
+        local x = (screenWidth-width)/2
+        local y = (screenHeight-height)/2
+        if nk.windowBegin("Map name", x, y, width, height, "title", "movable", "border") then
+            nk.layoutRow("dynamic", 35, {0.75,0.25})
+            nk.edit("simple", self.mapNameTable)
+            if nk.button("Enter") then
+                self:loadMapFile(self.mapNameTable.value)
+            end
+        end
+        nk.windowEnd()
+        return
+    end
+
+    if nk.windowBegin("Tiles", 0, 0, 100, screenHeight) then
+        nk.layoutRow("dynamic", 35, 1)
+        for index, tile in ipairs(tiles) do
+            nk.button(tile.name)
+        end
+    end
+    nk.windowEnd()
+end
+
 function Editor:getSelectedPosition(items, comparer)
     local item = items[1]
     local selectedX, selectedY = 0, 0
@@ -547,6 +579,16 @@ function Editor:wheelMoved(x, y)
     end
 end
 
+function Editor:loadMapFile(filename)
+    if #filename > 0 then
+        filename = filename .. ".lua"
+        self.world, self.map = self:loadMap(filename)
+        self.camera:setPosition(self.map.x*self.tileSize, self.map.y*self.tileSize)
+        self.visibility.prompt = false
+        self.mapname = filename
+    end
+end
+
 function Editor:keyPressed(key, scancode)
     local num = tonumber(scancode)
     print("pressed ", key, scancode, num)
@@ -555,12 +597,7 @@ function Editor:keyPressed(key, scancode)
         if scancode == "backspace" then
             self.mapname = self.mapname:sub(1, -2)
         elseif scancode == "return" then
-            if #self.mapname > 0 then
-                self.mapname = self.mapname .. ".lua"
-                self.world, self.map = self:loadMap(self.mapname)
-                self.camera:setPosition(self.map.x*self.tileSize, self.map.y*self.tileSize)
-                self.visibility.prompt = false
-            end
+            self:loadMapFile()
         elseif #scancode == 1 and #self.mapname < 20 then
             if string.match(scancode, "[0-9]") or string.match(scancode, "[a-z]") then
                 self.mapname = self.mapname .. scancode
