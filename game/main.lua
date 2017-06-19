@@ -6,7 +6,6 @@ local Dialog = require("ui.dialog")
 local ui = require("ui.ui")
 local Editor = require("editor")
 local nk = require("nuklear")
-local calculator = require("calculator")
 
 local map, dialog
 local editor
@@ -144,6 +143,10 @@ function love.keypressed(key, scancode, isrepeat)
         return
     end
 
+    if editor then
+        editor:keyPressed(key, scancode)
+    end
+
     if map then
         map:keypressed(key, scancode, isrepeat)
     end
@@ -152,6 +155,10 @@ end
 function love.keyreleased(key, scancode)
     if nk.keyreleased(key, scancode) then
         return
+    end
+
+    if editor then
+        editor:keyReleased(key, scancode)
     end
 
     if map then
@@ -164,6 +171,10 @@ function love.mousepressed(x, y, button, istouch)
         return
     end
 
+    if editor then
+        editor:mousePressed(x, y, button)
+    end
+
     if map then
         map:mousepressed(x, y, button, istouch)
     end
@@ -174,6 +185,10 @@ function love.mousereleased(x, y, button, istouch)
         return
     end
 
+    if editor then
+        editor:mouseReleased(x, y, button)
+    end
+    
     if map then
         map:mousereleased(x, y, button, istouch)
     end
@@ -194,5 +209,9 @@ end
 function love.wheelmoved(x, y)
     if nk.wheelmoved(x, y) then
         return
+    end
+
+    if editor then
+        editor:wheelMoved(x, y)
     end
 end

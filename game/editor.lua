@@ -396,8 +396,17 @@ function Editor:updateUi()
     if nk.windowBegin("Tiles", 0, 0, 100, screenHeight) then
         nk.layoutRow("dynamic", 35, 1)
         for index, tile in ipairs(tiles) do
-            nk.button(tile.name)
+            nk.label(tile.name)
+            nk.button(nil, nk.colorRGBA(unpack(tile.color)))
         end
+    end
+    nk.windowEnd()
+
+
+    if nk.windowBegin("Mapnameasd", 0, screenHeight - 25, screenWidth, 25) then
+        nk.layoutRow("dynamic", 25, 2)
+        nk.label(self.saveDir)
+        nk.label(self.mapname, "right")
     end
     nk.windowEnd()
 end
