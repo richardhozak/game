@@ -4,79 +4,84 @@ local lume = require("lib.lume")
 local Camera = Object:extend()
 
 function Camera:new()
-    self.posX = 0
-    self.posY = 0
     self.x = 0
     self.y = 0
-    self.scaleX = 1
-    self.scaleY = 1
+    self.scale = 1
     self.width = 0
     self.height = 0
+    self.scaledWidth = 0
+    self.scaledHeight = 0
+    
+    self.lockOn = nil
 
-    self.region = {}
-    self.region.x = self.x
-    self.region.y = self.y
-    self.region.width = 20 * 50
-    self.region.height = 20 * 50
-    self.realMaxX = 0
-    self.realMaxY = 0
-    self.realMinX = 0
-    self.realMinY = 0
-    self.followPlayer = true
+    self.bounds = {}
+    self.bounds.enabled = false
+    self.bounds.x = 0
+    self.bounds.y = 0
+    self.bounds.width = 0
+    self.bounds.height = 0
 end
 
 function Camera:update(dt)
-    self.width = love.graphics.getWidth() * self.scaleX
-    self.height = love.graphics.getHeight() * self.scaleY
+    self.width = love.graphics.getWidth()
+    self.height = love.graphics.getHeight()
+    self.scaledWidth = self.width * self.scale
+    self.scaledHeight = self.height * self.scale
 
-    if self.followPlayer then
-        timer:tween("roomBounds", 0.2, self, 
-        {x = lume.clamp(self.posX - self.width / 2, self.realMinX, self.realMaxX),
-        y = lume.clamp(self.posY - self.height / 2, self.realMinY, self.realMaxY),
-        realMaxX=self.region.x + self.region.width - self.width,
-        realMinX=self.region.x,
-        realMaxY=self.region.y + self.region.height - self.height, 
-        realMinY=self.region.y}, "linear")
-    else
-        self.realMaxX = self.region.width - self.width
-        self.realMaxY = self.region.height - self.height
+    if self.bounds.enabled then
+        local entityX, entityY = nil, nil
 
-        self.x = self.posX --lume.clamp(self.posX, 0, self.realMaxX)
-        self.y = self.posY --lume.clamp(self.posY, 0, self.realMaxY)
+        if self.lockOn and type(self.lockOn.getCenter) == "function" then
+            entityX, entityY = self.lockOn:getCenter()
+        end
+
+        if self.bounds.width < self.scaledWidth then
+            self.x = -((self.scaledWidth - self.bounds.width) / 2) + self.bounds.x
+        else
+            local x = entityX and entityX - self.scaledWidth / 2 or self.x
+            self.x = lume.clamp(x, self.bounds.x, self.bounds.x + self.bounds.width - self.scaledWidth)
+        end
+
+        if self.bounds.height < self.scaledHeight then
+            self.y = -((self.scaledHeight - self.bounds.height) / 2) + self.bounds.y
+        else
+            local y = entityY and entityY - self.scaledHeight / 2 or self.y
+            self.y = lume.clamp(y, self.bounds.y, self.bounds.y + self.bounds.height - self.scaledHeight)
+        end
     end
-
-    
-
-    --[[
-    self.x = lume.clamp(self.posX - self.width / 2, self.realMinX, self.realMaxX)
-    self.y = lume.clamp(self.posY - self.height / 2, self.realMinY, self.realMaxY)
-    self.realMaxX = self.region.x + self.region.width - self.width
-    self.realMinX = self.region.x
-    self.realMaxY = self.region.y + self.region.height - self.height
-    self.realMinY = self.region.y
-    --]]
 end
 
 function Camera:draw(func)
     love.graphics.push()
-    love.graphics.scale(1 / self.scaleX, 1 / self.scaleY)
+    love.graphics.scale(1 / self.scale, 1 / self.scale)
     love.graphics.translate(-self.x, -self.y)
 
-    func(self.x, self.y, self.width, self.height)
+    func(self.x, self.y, self.scaledWidth, self.scaledHeight)
 
     love.graphics.pop()
 end
 
-function Camera:setRegion(x, y, width, height)
-    self.region.x = x
-    self.region.y = y
-    self.region.width = width
-    self.region.height = height
+function Camera:lookAt(entity)
+    self.lockOn = entity
+end
+
+function Camera:setBounds(x, y, width, height)
+    if x == nil then
+        self.bounds.enabled = false
+    else
+        self.bounds.x, self.bounds.y = x, y
+        self.bounds.width, self.bounds.height = width, height
+        self.bounds.enabled = true
+    end
 end
 
 function Camera:setPosition(x, y)
-    self.posX = x
-    self.posY = y
+    self.x, self.y = x, y
+end
+
+function Camera:move(dx, dy)
+    self.x = self.x + dx * self.scale
+    self.y = self.y + dy * self.scale
 end
 
 function Camera:getMousePosition()
@@ -84,16 +89,15 @@ function Camera:getMousePosition()
 end
 
 function Camera:getMouseX()
-    return love.mouse.getX() * self.scaleX + self.x
+    return love.mouse.getX() * self.scale + self.x
 end
 
 function Camera:getMouseY()
-    return love.mouse.getY() * self.scaleY + self.y
+    return love.mouse.getY() * self.scale + self.y
 end
 
-function Camera:setScale(scaleX, scaleY)
-    self.scaleX = lume.clamp(scaleX, 1, 4)
-    self.scaleY = lume.clamp(scaleY, 1, 4)
+function Camera:setScale(scale)
+    self.scale = lume.clamp(scale, 1, 4)
 end
 
-return Camera()
+return Camera

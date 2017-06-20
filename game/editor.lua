@@ -190,7 +190,7 @@ function Editor:drawUi()
     if self.visibility.minimap then
         local minimapWidth = width / 4
         local minimapHeight = minimapWidth * 0.75
-        self:drawMinimap(width-minimapWidth,height-minimapHeight, minimapWidth, minimapHeight, 10*self.camera.scaleX, self.camera)
+        self:drawMinimap(width-minimapWidth,height-minimapHeight-25, minimapWidth, minimapHeight, 10*self.camera.scaleX, self.camera)
     end
 
     if self.visibility.debug then
@@ -384,8 +384,8 @@ function Editor:updateUi()
         local y = (screenHeight-height)/2
         if nk.windowBegin("Map name", x, y, width, height, "title", "movable", "border") then
             nk.layoutRow("dynamic", 35, {0.75,0.25})
-            nk.edit("simple", self.mapNameTable)
-            if nk.button("Enter") then
+            local state, changed = nk.edit("field", self.mapNameTable)
+            if nk.button("Enter") or (state == "active" and love.keyboard.isDown("return")) then
                 self:loadMapFile(self.mapNameTable.value)
             end
         end
@@ -393,18 +393,24 @@ function Editor:updateUi()
         return
     end
 
-    if nk.windowBegin("Tiles", 0, 0, 100, screenHeight) then
+
+    if nk.windowBegin("Tiles", 0, 0, 100, screenHeight-25) then
         nk.layoutRow("dynamic", 35, 1)
         for index, tile in ipairs(tiles) do
-            nk.label(tile.name)
-            nk.button(nil, nk.colorRGBA(unpack(tile.color)))
+            if nk.groupBegin(tile.name) then
+                nk.label(tile.name)
+                if nk.button(nil, nk.colorRGBA(unpack(tile.color))) then
+                    self.selectedTileIndex = index
+                end
+                nk.groupEnd()
+            end
         end
     end
     nk.windowEnd()
 
 
-    if nk.windowBegin("Mapnameasd", 0, screenHeight - 25, screenWidth, 25) then
-        nk.layoutRow("dynamic", 25, 2)
+    if nk.windowBegin("Mapname", 0, screenHeight - 25, screenWidth, 25) then
+        nk.layoutRow("dynamic", 25, 1)
         nk.label(self.saveDir)
         nk.label(self.mapname, "right")
     end

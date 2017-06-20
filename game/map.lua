@@ -32,7 +32,7 @@ function Map:reset()
         end
     end
 
-    self.camera:setRegion(self.x, self.y, self.width, self.height)
+    self.camera:setBounds(self.x, self.y, self.width, self.height)
 end
 
 function Map:loadDefault()
@@ -70,7 +70,7 @@ function Map:update(dt, x, y, width, height)
     end
 end
 
-function Map:draw(x, y, width, height)
+function Map:draw()
     local items, len = self.world:getItems()
     for i=1, len do
         items[i]:draw()
