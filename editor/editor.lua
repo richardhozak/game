@@ -473,7 +473,7 @@ function Editor:saveMap(filename)
         map.height = mapHeight
         self.map = map
 
-        local encoded = luatable.encode_pretty(map)
+        local encoded = luatable.encode(map)
         file:write(encoded)
         file:close()
     else

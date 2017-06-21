@@ -36,18 +36,121 @@ mousex: %d, mousey: %d
 mousetx: %d, mousety: %d
 ]]
 
-function Editor:new(map, camera)
-    self.map = map
+function Editor:new(camera)
     self.camera = camera
+    print("camera", type(self.camera), self.camera)
     self:reset()    
 end
 
 function Editor:reset()
+    self.visibility = {}
+    self.visibility.prompt = true
+    self.visibility.minimap = true
+    self.visibility.help = false
+    self.visibility.debug = false
+    
+    self.selectedTileIndex = 1
+    self.width, self.height = love.graphics.getDimensions()
+    self.saveDir = love.filesystem.getSaveDirectory()
+    self.font = love.graphics.newFont(12)
+    
+    self.axis = {}
+    self.axis.locked = false
+    self.axis.direction = nil
+    self.axis.column = nil
+    self.axis.row = nil
+
     self.tileSize = 32
-    self.camera:setBounds()
+    self.beginX, self.beginY = 0
+    self.cameraX, self.cameraY = 0
+    self.mapname = ""
+    self.world = nil
+    self.map = nil
+
+    self.mouse = {}
+    self.mouse.x = 0
+    self.mouse.y = 0
+    self.mouse.left = false
+    self.mouse.right = false
+
+    self.mapNameTable = {}
+    self.mapNameTable.value = ""
 end
 
 function Editor:update(dt)
+    self.mouse.x, self.mouse.y = love.mouse.getPosition()
+
+    if self.visibility.prompt or not self.world then
+        return true
+    end
+
+    if self.mouse.right then
+        local diffX = (self.mouse.x - self.beginX) * self.camera.scaleX
+        local diffY = (self.mouse.y - self.beginY) * self.camera.scaleX
+        self.camera:setPosition(self.cameraX - diffX, self.cameraY - diffY)
+    end
+
+    if self.mouse.left then
+        local mouseX, mouseY = self.camera:getMousePosition()
+        local column = math.floor(mouseX / self.tileSize)
+        local row = math.floor(mouseY / self.tileSize)
+        local allowDraw = true
+
+        if love.keyboard.isDown("lshift") then
+            if not self.axis.column and not self.axis.row then
+                print("setting position", self.axis.column, self.axis.row)
+                self.axis.column, self.axis.row = column, row
+                self.axis.direction = nil
+            elseif not axisDirection then
+                local horizontalDiff = math.abs(self.axis.column - column) > 0
+                local verticalDiff = math.abs(self.axis.row - row) > 0
+
+                if horizontalDiff and verticalDiff then
+                    -- diagonal dragging not supported
+                    allowDraw = false
+                elseif horizontalDiff then
+                    self.axis.direction = "horizontal"
+                elseif verticalDiff then
+                    self.axis.direction = "vertical"
+                else
+                    print("no movement")
+                end
+
+                print("setting axis direction", self.axis.direction)
+            else
+                local horizontalDiff = math.abs(self.axis.column - column) > 0
+                local verticalDiff = math.abs(self.axis.row - row) > 0
+                
+                if axisDirection == "horizontal" then
+                    if verticalDiff then
+                        row = self.axis.row
+                    end
+                elseif axisDirection == "vertical" then
+                    if horizontalDiff then
+                        column = self.axis.column
+                    end
+                else
+                    print("invalid axis direction", self.axis.direction)
+                    allowDraw = false
+                end
+            end
+        end
+
+        if allowDraw then
+            local items, len = self.world:queryRect(column * self.tileSize, row * self.tileSize, self.tileSize, self.tileSize)
+            local tile = tiles[self.selectedTileIndex]
+            for i=1, len do
+                self.world:remove(items[i])
+            end
+
+            if tile.name ~= "blank" then
+                local item = {x=column * self.tileSize, y=row * self.tileSize, index=self.selectedTileIndex}
+                self.world:add(item, item.x, item.y, self.tileSize, self.tileSize)
+            end
+        end
+    end
+
+    return true
 end
 
 function Editor:draw(x, y, w, h)
@@ -62,8 +165,37 @@ function Editor:draw(x, y, w, h)
 end
 
 function Editor:drawUi()
+    if self.visibility.prompt then
+        self:drawFilePrompt()
+        return
+    end
+
     self:drawToolbar(0,0)
-    self:drawDebugInfo()
+
+    local width, height = love.graphics.getDimensions()
+
+    love.graphics.setColor(255,255,255,255)
+    love.graphics.print("location: " .. self.saveDir, 0, height - self.font:getHeight())
+
+    love.graphics.print(helpToggle, width - self.font:getWidth(helpToggle), 0)
+    if self.visibility.help then
+        love.graphics.printf(help, width - 200, self.font:getHeight(),200,"right")
+    end
+
+    if not self.visibility.prompt then
+        local mapDisplay = "map: " .. self.mapname
+        love.graphics.print(mapDisplay, width - self.font:getWidth(mapDisplay), height - self.font:getHeight())
+    end
+
+    if self.visibility.minimap then
+        local minimapWidth = width / 4
+        local minimapHeight = minimapWidth * 0.75
+        self:drawMinimap(width-minimapWidth,height-minimapHeight-25, minimapWidth, minimapHeight, 10*self.camera.scaleX, self.camera)
+    end
+
+    if self.visibility.debug then
+        self:drawDebugInfo()
+    end
 end
 
 function Editor:drawToolbar(x, y)
@@ -240,6 +372,49 @@ function Editor:drawDebugInfo()
         math.floor(self.camera.x/self.tileSize), math.floor(self.camera.y/self.tileSize),
         self.camera:getMouseX(), self.camera:getMouseY(),
         math.floor(self.camera:getMouseX() / self.tileSize), math.floor(self.camera:getMouseY() / self.tileSize)))
+end
+
+function Editor:updateUi()
+    local screenWidth, screenHeight = love.graphics.getDimensions()
+
+    if self.visibility.prompt then
+        local width = 300
+        local height = 80
+        local x = (screenWidth-width)/2
+        local y = (screenHeight-height)/2
+        if nk.windowBegin("Map name", x, y, width, height, "title", "movable", "border") then
+            nk.layoutRow("dynamic", 35, {0.75,0.25})
+            local state, changed = nk.edit("field", self.mapNameTable)
+            if nk.button("Enter") or (state == "active" and love.keyboard.isDown("return")) then
+                self:loadMapFile(self.mapNameTable.value)
+            end
+        end
+        nk.windowEnd()
+        return
+    end
+
+
+    if nk.windowBegin("Tiles", 0, 0, 100, screenHeight-25) then
+        nk.layoutRow("dynamic", 35, 1)
+        for index, tile in ipairs(tiles) do
+            if nk.groupBegin(tile.name) then
+                nk.label(tile.name)
+                if nk.button(nil, nk.colorRGBA(unpack(tile.color))) then
+                    self.selectedTileIndex = index
+                end
+                nk.groupEnd()
+            end
+        end
+    end
+    nk.windowEnd()
+
+
+    if nk.windowBegin("Mapname", 0, screenHeight - 25, screenWidth, 25) then
+        nk.layoutRow("dynamic", 25, 1)
+        nk.label(self.saveDir)
+        nk.label(self.mapname, "right")
+    end
+    nk.windowEnd()
 end
 
 function Editor:getSelectedPosition(items, comparer)
