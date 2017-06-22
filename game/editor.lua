@@ -1,8 +1,6 @@
 local util = require("util")
-local bump = require("lib.bump")
-local luatable = require("lib.LuaTable")
-local bump_debug = require("lib.bump_debug")
-local nk = require("nuklear")
+local lume = require("lib.lume")
+local bitser = require("lib.bitser")
 
 local Object = require("lib.classic")
 local Editor = Object:extend()
@@ -39,11 +37,18 @@ mousetx: %d, mousety: %d
 function Editor:new(map, camera)
     self.map = map
     self.camera = camera
-    self:reset()    
+    self:reset()
 end
 
 function Editor:reset()
     self.tileSize = 32
+    self.selectedTileIndex = 1
+    self.font = love.graphics.newFont(12)
+    self.visibility = {}
+    self.visibility.prompt = false
+    self.visibility.minimap = true
+    self.visibility.debug = false
+    self.visibility.help = false
     self.camera:setBounds()
 end
 
@@ -52,18 +57,24 @@ end
 
 function Editor:draw(x, y, w, h)
     self:drawCheckerBoard(x,y,w,h)
-    if self.world then
-        self:drawMapBorder()
-        self:drawMap()
-    end
+    self:drawMapBorder()
+    self:drawMap()
+
     if self.visibility.debug then
-        bump_debug.draw(self.world, x, y, w, h)
+        self:dragDebugInfo()
     end
 end
 
 function Editor:drawUi()
     self:drawToolbar(0,0)
-    self:drawDebugInfo()
+    --self:drawDebugInfo()
+
+    if self.visibility.minimap then
+        local screenWidth, screenHeight = love.graphics.getDimensions()
+        local width, height = 200, 200
+        local x, y = screenWidth - width, screenHeight - height
+        self:drawMinimap(x, y, width, height, 10)
+    end
 end
 
 function Editor:drawToolbar(x, y)
@@ -122,21 +133,16 @@ function Editor:drawCheckerBoard(x, y, w, h)
 end
 
 function Editor:drawMap()
-    love.graphics.setColor(255,255,255,255)
-    local items, len = self.world:getItems()
-    for i=1, len do
-        local item = items[i]
-        local tile = tiles[item.index]
-        love.graphics.setColor(tile.color)
-        love.graphics.rectangle("fill", item.x, item.y, self.tileSize, self.tileSize)
+    for x, row in pairs(self.map.items) do
+        for y, index in pairs(row) do
+            local tile = tiles[index]
+            love.graphics.setColor(tile.color)
+            love.graphics.rectangle("fill", x*self.tileSize, y*self.tileSize, self.tileSize, self.tileSize)
+        end
     end
 end
 
 function Editor:drawMapBorder()
-    if not self.map then
-        return
-    end
-
     local map = self.map
     local x,y = map.x * self.tileSize, map.y*self.tileSize
     local w,h = map.width*self.tileSize, map.height*self.tileSize
@@ -146,23 +152,23 @@ function Editor:drawMapBorder()
     love.graphics.rectangle("line", x, y, w, h)
 end
 
-function Editor:drawMinimap(x, y, w, h, scale, camera)
-    local scale = scale > 0 and scale or 1
+function Editor:drawMinimap(x, y, w, h, scale)
+    local scale = scale * self.camera.scale
     love.graphics.setScissor(x, y, w, h)
     love.graphics.setColor(0,0,0,50)
     love.graphics.rectangle("fill", x, y, w, h)
     love.graphics.setColor(0,0,0,100)
     love.graphics.rectangle("line", x, y, w, h)
 
-    local cameraWidth = camera.width / scale
-    local cameraHeight = camera.height / scale
+    local cameraWidth = self.camera.scaledWidth / scale
+    local cameraHeight = self.camera.scaledHeight / scale
     local cameraX = (x+w/2)-cameraWidth/2
     local cameraY = (y+h/2)-cameraHeight/2
 
     love.graphics.push()
     love.graphics.translate(cameraX, cameraY)
     love.graphics.scale(1 / scale, 1 / scale)
-    love.graphics.translate(-camera.x, -camera.y)
+    love.graphics.translate(-self.camera.x, -self.camera.y)
 
     self:drawMap()
 
@@ -243,22 +249,17 @@ function Editor:drawDebugInfo()
 end
 
 function Editor:getSelectedPosition(items, comparer)
-    local item = items[1]
     local selectedX, selectedY = 0, 0
 
-    if item then
-        selectedX, selectedY = item.x, item.y
-    end
-
-    for i=2, #items do
-        item = items[i]
-
-        if comparer(selectedX, item.x) then
-            selectedX = item.x
+    for x, row in pairs(self.map.items) do
+        if comparer(selectedX, x) then
+            selectedX = x
         end
 
-        if comparer(selectedY, item.y) then
-            selectedY = item.y
+        for y, index in pairs(row) do
+            if comparer(selectedY, y) then
+                selectedY = y
+            end
         end
     end
 
@@ -288,35 +289,12 @@ function Editor:normalizeMap()
     return items, len
 end
 
-function Editor:loadMap(filename)
-    local world = bump.newWorld(self.tileSize)
-
-    filename = "maps/" .. filename
-    
-    if not love.filesystem.exists(filename) then
-        return world, {
-            x=0,
-            y=0,
-            width=0,
-            height=0,
-            items={}
-        }
-    end
-
-    local map = love.filesystem.load(filename)()
-
-    for index, item in ipairs(map.items) do
-        item.index = item.tile
-        item.tile = nil
-        item.x = item.x * self.tileSize
-        item.y = item.y * self.tileSize
-        world:add(item, item.x, item.y, self.tileSize, self.tileSize)
-    end
-
-    return world, map
+function Editor:load(filename)
+    local level = bitser.loadLoveFile("maps/" .. filename)
+    return level
 end
 
-function Editor:saveMap(filename)
+function Editor:save(filename)
     local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
     if file then
         print("saving file")
@@ -360,72 +338,24 @@ function Editor:saveMap(filename)
 end
 
 function Editor:mousePressed(x, y, button)
-    if button == 1 then
-        self.mouse.left = true
-    end
 
-    if button == 2 then
-        self.mouse.right = true
-    end
-
-    if button == 2 or button == 1 then
-        self.cameraX = self.camera.posX
-        self.cameraY = self.camera.posY
-        self.beginX, self.beginY = x, y
-        print("dragstart", x,y,button)
-    end
 end
 
 function Editor:mouseReleased(x, y, button)
-    if button == 1 then
-        self.mouse.left = false
-    end
 
-    if button == 2 then
-        self.mouse.right = false
-    end
-
-    if button == 2 or button == 1 then
-        self.beginX, self.beginY = nil, nil
-        self.axis.column, self.axis.row = nil, nil
-        self.axis.direction = nil
-        print("dragended",x,y,button)
-    end
 end
 
 function Editor:wheelMoved(x, y)
-    if self.visibility.prompt then
-        return
-    end
-
     if love.keyboard.isDown("lctrl") then
-        if y > 0 then
-            self.camera:setScale(self.camera.scaleX - 1, self.camera.scaleY - 1)
-        elseif y < 0 then
-            self.camera:setScale(self.camera.scaleX + 1, self.camera.scaleY + 1)
-        end
+        self.camera.scale = lume.clamp(self.camera.scale - y, 1, 5)
     else
-        if y > 0 then
-            local newIndex = self.selectedTileIndex - 1
-            if newIndex >= 1 then
-                self.selectedTileIndex = newIndex
-            end
-        elseif y < 0 then
-            local newIndex = self.selectedTileIndex + 1
-            if newIndex <= #tiles then
-                self.selectedTileIndex = newIndex
-            end
-        end
+        self.selectedTileIndex = lume.clamp(self.selectedTileIndex - y, 1, #tiles)
     end
 end
 
-function Editor:loadMapFile(filename)
-    if #filename > 0 then
-        filename = filename .. ".lua"
-        self.world, self.map = self:loadMap(filename)
-        self.camera:setPosition(self.map.x*self.tileSize, self.map.y*self.tileSize)
-        self.visibility.prompt = false
-        self.mapname = filename
+function Editor:mouseMoved(x, y, dx, dy, istouch)
+    if love.mouse.isDown(2) then
+        self.camera:move(-dx, -dy)
     end
 end
 
@@ -447,18 +377,8 @@ function Editor:keyPressed(key, scancode)
         return
     end
 
-    if love.keyboard.isDown("lctrl") then
-        if key == "s" then
-            self:saveMap(self.mapname)
-        elseif key == "n" then
-            print("normalizing map")
-            local items, len = self:normalizeMap()
-            self.world = bump.newWorld(self.tileSize)
-            for i=1,len do
-                local item = items[i]
-                self.world:add(item, item.x, item.y, self.tileSize, self.tileSize)
-            end
-        end
+    if love.keyboard.isDown("lctrl") and key == "s" then
+        self:save(self.mapname)
     end
 
     if num and num >= 1 and num <= #tiles then

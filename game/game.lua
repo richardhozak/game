@@ -1,7 +1,6 @@
 local Camera = require("camera")
 local Level = require("level")
 local Editor = require("editor")
-local luatable = require("lib.LuaTable")
 local bitser = require("lib.bitser")
 
 local Object = require("lib.classic")
@@ -16,16 +15,31 @@ h: %f
 
 function Game:new()
     self.camera = Camera()
-    --self.editor = Editor(self.camera)
-    self.map = nil
     self.editing = false
     self.tileSize = 32
-    --self:edit("test.lua")
-    self:loadLevel("bitmap")
+
+    self.map = nil
+    self.editor = nil
+    self.level = nil
+
+
+    self:editLevel("bitmap")
+    --self:loadLevel("bitmap")
+end
+
+function Game:getDefaultMap()
+    return {
+        x=0,
+        y=0,
+        width=0,
+        height=0,
+        items={},
+        version=2
+    }
 end
 
 function Game:update(dt)
-    if self.editing then
+    if self.editing and self.editor then
         self.editor:update(dt)
     elseif self.level then 
         self.level:update(dt) 
@@ -36,14 +50,14 @@ end
 
 function Game:draw()
     self.camera:draw(function(x, y, w, h)
-        if self.editing then 
+        if self.editing and self.editor then 
             self.editor:draw(x, y, w, h)
         elseif self.level then 
             self.level:draw()
         end
     end)
 
-    if self.editing then
+    if self.editing and self.editor then
         self.editor:drawUi()
     end
 
@@ -101,7 +115,7 @@ end
 
 function Game:editLevel(name)
     self.map = bitser.loadLoveFile("maps/" .. name)
-    self.camera:setBounds()
+    self.editor = Editor(self.map, self.camera)
     self.editing = true
 end
 
@@ -151,8 +165,8 @@ function Game:mouseReleased(x, y, button, istouch)
 end
 
 function Game:mouseMoved(x, y, dx, dy, istouch)
-    if not self.camera.lockOn and self.map and love.mouse.isDown(2) then
-        self.camera:move(-dx, -dy)
+    if self.editing then
+        self.editor:mouseMoved(x, y, dx, dy, istouch)
     end
 end
 
@@ -161,8 +175,8 @@ function Game:textInput(text)
 end
 
 function Game:wheelMoved(x, y)
-    if not self.camera.lockOn then
-        self.camera:setScale(self.camera.scale - y)
+    if self.editing then
+        self.editor:wheelMoved(x, y)
     end
 end
 
