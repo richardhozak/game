@@ -2,8 +2,8 @@ local Game = require("game")
 local Ui = require("ui")
 local nui = require("newui")
 local game
-local menu
-local testmenu
+local menu, col
+local testmenu, testcol
 
 function love.load()
     love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
@@ -56,6 +56,7 @@ function love.load()
     }
     --]]
 
+    --[[
     testmenu = nui.row {
         spacing = 10,
         nui.button {
@@ -121,21 +122,126 @@ function love.load()
             }
         }
     }
+    --]]
 
-    menu = testmenu()
+    testmenu = nui.column {
+        spacing = 10,
+        nui.button {
+            width = 100,
+            height = 50,
+            radius = 5,
+            border = {
+                width = 2,
+                color = {255,255,255},
+            },
+            text = love.timer.getFPS,
+            color = function(b)
+                if b.pressed then
+                    return {46, 62, 80}
+                elseif b.mouseOver then
+                    return {102, 51, 153}
+                else
+                    return {55,55,55}
+                end
+            end,
+            onPressed = function(b)
+                return function()
+                    print("onPressed called")
+                end
+            end,
+            onReleased = function(b)
+                return function()
+                    print("onReleased called")
+                end
+            end,
+            onClicked = function(b)
+                return function()
+                    print("onClicked called")
+                end
+            end,
+            --color = {46, 62, 80},
+        },
+        nui.button {
+            width = 100,
+            height = 50,
+            color = {102, 51, 153},
+        },
+        nui.row {
+            spacing = 10,
+            nui.button {
+                width = 100,
+                height = 50,
+                color = {102, 51, 153},
+            },
+            nui.button {
+                width = 100,
+                height = 50,
+                color = {68, 108, 179},
+            },
+            nui.column {
+                spacing = 10,
+                nui.button {
+                    width = 100,
+                    height = 50,
+                    color = {102, 51, 153},
+                },
+                nui.button {
+                    width = 100,
+                    height = 50,
+                    color = {68, 108, 179},
+                },
+            }
+        }
+    }
+
+    testcol = nui.column {
+        x = 400,
+        y = 100,
+        spacing = 10,
+        nui.button {
+            width = 100,
+            height = 50,
+            color = {102, 51, 153}
+        },
+        nui.button {
+            width = 100,
+            height = 50,
+            color = {102, 51, 153}
+        },
+        nui.button {
+            width = 100,
+            height = 50,
+            color = {102, 51, 153}
+        },
+        nui.button {
+            width = 100,
+            height = 50,
+            color = {102, 51, 153}
+        },
+    }
+
+    --menu = testmenu()
+    --menu = testmenu(20,20)
     --print("asd")
 end
 
+local menuX = 0
+
 function love.update(dt)
     --menu:update(dt)
-
+    --menuX = menuX + dt*50
+    menu = testmenu()
+    col = testcol()
 end
 
 function love.draw()
     --menu:draw()
     love.graphics.setColor(255,255,255,100)
     love.graphics.rectangle("fill", 0, 0, menu.width, menu.height)
-    nui.draw(menu)
+    nui.draw(menu.children)
+    nui.draw(col.children)
+    love.graphics.setColor(255,255,255)
+    love.graphics.print(love.timer.getFPS())
 end
 
 --[[
