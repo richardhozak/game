@@ -180,6 +180,15 @@ function love.load()
             },
             nui.column {
                 spacing = 10,
+                --[[nui.repeater {
+                    times = 3,
+                    updater = nui.column,
+                    nui.button {
+                        width = 100,
+                        height = 25,
+                        color = {255,255,255},
+                    }
+                },--]]
                 nui.button {
                     width = 100,
                     height = 50,
@@ -194,29 +203,69 @@ function love.load()
         }
     }
 
+    --[[testcol = nui.repeater {
+        x = 400,
+        y = 200,
+        times = 3,
+        spacing = 10,
+        updater = nui.column,
+        delegate = nui.newbutton {
+            width = 100,
+            height = 25,
+            color = function(b) 
+                return b.pressed and {20,20,20,255} or {255,255,255} 
+            end,
+            onClicked = function(b)
+                return function()
+                    print("clicked", b.index)
+                end
+            end
+        }
+    }]]--
+
     testcol = nui.column {
         x = 400,
-        y = 100,
+        y = 200,
         spacing = 10,
-        nui.button {
-            width = 100,
-            height = 50,
-            color = {102, 51, 153}
+        nui.repeater {
+            times = 3,
+            --updater = nui.column,
+            delegate = nui.button {
+                width = 100,
+                height = 25,
+                color = function(b) 
+                    return b.pressed and {20,20,20,255} or {255,255,255} 
+                end,
+                onClicked = function(b)
+                    return function()
+                        print("clicked", b.index)
+                    end
+                end
+            }
         },
         nui.button {
             width = 100,
             height = 50,
-            color = {102, 51, 153}
+            color = function(b) 
+                return b.pressed and {20,20,20,255} or {102, 51, 153}
+            end,
+            onClicked = function() 
+                return function() 
+                    print("first clicked") 
+                end
+            end
         },
         nui.button {
             width = 100,
             height = 50,
-            color = {102, 51, 153}
-        },
-        nui.button {
-            width = 100,
-            height = 50,
-            color = {102, 51, 153}
+            color = function(b) 
+                return b.pressed and {20,20,20,255} or {68, 108, 179}
+            end,
+            onClicked = function() 
+                return function() 
+                    print("second clicked") 
+                end
+            end
         },
     }
 
@@ -240,7 +289,10 @@ function love.draw()
     love.graphics.rectangle("fill", 0, 0, menu.width, menu.height)
     nui.draw(menu.children)
     nui.draw(col.children)
+
     love.graphics.setColor(255,255,255)
+    love.graphics.rectangle("line", col.x, col.y, 300, 300)
+
     love.graphics.print(love.timer.getFPS())
 end
 
