@@ -34,6 +34,35 @@ local function callIfFunction(func)
 	end
 end
 
+-- creates bindings in 'root' table from functions that are present in 'context' table (recursively)
+local function createBindings(bindings, context)
+	for key, value in pairs(context) do
+		if type(value) == "function" then
+			bindings[key] = value
+		elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
+			print(key, type(key))
+			local subbindings = {}
+			bindings[key] = subbindings
+			createBindings(subbindings, value)
+		end
+	end
+end
+
+local function evaluateBindings(bindings, context, arg)
+	if not arg then
+		arg = context
+	end
+
+	for key, value in pairs(bindings) do
+		if type(value) == "function" then
+			context[key] = value(arg)
+		elseif type(value) == "table" then
+			--print("evaluating", key, value, inspect(value), inspect(context[key]))
+			evaluateBindings(value, context[key], arg)
+		end
+	end
+end
+
 function ui.button(t, defaults)
 	print("t", t.x, t.x, t.width, t.height)
 	t.name = "button"
@@ -50,12 +79,10 @@ function ui.button(t, defaults)
 
 	t.pressed = false
 	t.mouseover = false
-	t.bindings = {}
 
-	for index, value in pairs(t) do
-		if type(value) == "function" then
-			t.bindings[index] = value
-		end
+	if not t.bindings then
+		t.bindings = {}
+		createBindings(t.bindings, t)
 	end
 
 	local pressedRegistered = false
@@ -65,11 +92,13 @@ function ui.button(t, defaults)
 			local mx, my = love.mouse.getPosition()
 			t.mouseover = pointInRect(mx, my, t.x, t.y, t.width, t.height)
 			
-			for key, value in pairs(t.bindings) do
+			--[[for key, value in pairs(t.bindings) do
 				if type(value) == "function" then
 					t[key] = value(t)
 				end
-			end
+			end--]]
+
+			evaluateBindings(t.bindings, t)
 
 			if t.mouseover and love.mouse.isDown(1) then
 				t.pressed = true
@@ -92,7 +121,6 @@ function ui.column(t, defaults)
 	t.x = t.x or 0
 	t.y = t.y or 0
 	t.spacing = t.spacing or defaults and defaults.spacing or 0
-	t.children = {}
 
 	return setmetatable(t, {
 		__call = function()
@@ -122,13 +150,21 @@ function ui.row(t, defaults)
 	t.name = "row"
 	t.x = t.x or 0
 	t.y = t.y or 0
+	t.width = t.width or 0
+	t.height = t.height or 0
 	t.spacing = t.spacing or defaults and defaults.spacing or 0
-	t.children = {}
+
+	t.bindings = {}
+	createBindings(t.bindings, t)
+
+	print(inspect(t))
 
 	return setmetatable(t, {
 		__call = function()
 			local width = 0
 			local height = 0
+
+			evaluateBindings(t.bindings, t)
 
 			for index, child in ipairs(t) do
 				child.parent = t
@@ -156,18 +192,29 @@ function ui.repeater(t, defaults)
 	t.y = t.y or 0
 	t.height = 0
 	t.width = 0
-	t.times = t.times or 0
+	t.times = t.times or 1
 	t.parent = nil
+
+	print("inspect", inspect(t))
+
+	t.bindings = {}
+	createBindings(t.bindings, t)
+
+	print("inspect", inspect(t))
 
 	local initialized = false
 	local update = nil
+	local lastTimes = 0
 
 	return setmetatable(t, {
 		__call = function() 
-			if not initialized then
-				local itemtable = {}
-				local item = t.delegate
-				local name = t.delegate.name
+			evaluateBindings(t.bindings, t)
+
+			print(t.times)
+
+			if lastTimes ~= t.times then
+				local item = t[1]
+				local name = item.name
 
 				for i=1, t.times do
 					local itemcopy = copy3(item)
@@ -175,8 +222,13 @@ function ui.repeater(t, defaults)
 					t[i] = ui[name](itemcopy)
 				end
 
-				update = ui[t.parent.name](t, t.parent)
-				initialized = true
+				if update then
+					print("update set")
+				else
+					update = ui[t.parent.name](t, t.parent)
+				end
+
+				lastTimes = t.times
 			end
 
 			update()
@@ -189,16 +241,19 @@ function ui.drawItem(item)
 		if item.name == "button" then
 			love.graphics.setColor(item.color)
 			love.graphics.rectangle("fill", item.x, item.y, item.width, item.height, item.radius)
+			
 			if item.border then
 				love.graphics.setColor(item.border.color)
 				love.graphics.setLineWidth(item.border.width)
 				love.graphics.rectangle("line", item.x, item.y, item.width, item.height, item.radius)
-				if item.text then
-					local font = love.graphics.getFont()
-					local xOffset = (item.width - font:getWidth(item.text)) / 2
-					local yOffset = (item.height - font:getHeight()) / 2
-					love.graphics.print(item.text, item.x + xOffset, item.y + yOffset)
-				end
+			end
+
+			if item.text then
+				local font = love.graphics.getFont()
+				local xOffset = (item.width - font:getWidth(item.text.value)) / 2
+				local yOffset = (item.height - font:getHeight()) / 2
+				love.graphics.setColor(item.text.color)
+				love.graphics.print(item.text.value, math.floor(item.x + xOffset), math.floor(item.y + yOffset))
 			end
 		else
 			for index, child in ipairs(item) do

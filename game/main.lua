@@ -1,83 +1,56 @@
+inspect = require("lib.inspect")
+
 local Game = require("game")
 local nui = require("newnewui")
+local files = {
+    "one",
+    "two",
+    "three",
+    "four"
+}
 
 function love.load()
     love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
 
-    column = nui.row {
-        x = 20,
-        y = 20,
-        spacing = 10,
+    column = nui.column {
+        spacing = 5,
         nui.button {
             width=100,
             height=50,
             color={255,255,255},
             onClicked=function(t)
-                return function() print("clicked1") end
-            end
-        },
-        nui.button {
-            width=100,
-            height=50,
-            color=function(t)
-                return t.mouseover and {20,20,20} or {255,255,255}
-            end,
-            onClicked=function(t)
-                return function() print("clicked2") end
-            end
-        },
-        nui.column {
-            spacing = 5,
-            nui.repeater {
-                times=3,
-                delegate=nui.button {
-                    width=100,
-                    height=50,
-                    color=function(t)
-                        return t.mouseover and {20,20,20} or {255,255,255,100}
-                    end,
-                    onClicked=function(t)
-                        return function() print("clicked" .. t.index) end
-                    end
-                }
-            },
-            nui.button {
-                width=100,
-                height=50,
-                color={255,255,255},
-                onClicked=function(t)
-                    return function() print("clicked1") end
+                return function() 
+                    table.insert(files, "another one " .. #files)
+                    print("clicked1", #files) 
                 end
-            },
+            end
+        },
+        nui.repeater {
+            times=function() return #files end,
             nui.button {
                 width=100,
                 height=50,
                 color=function(t)
-                    return t.mouseover and {20,20,20} or {255,255,255}
+                    return t.mouseover and {20,20,20} or {255,255,255,100}
                 end,
-                onClicked=function(t)
-                    return function() print("clicked2") end
-                end
-            },
-            nui.repeater {
-                times=3,
-                delegate=nui.button {
-                    width=100,
-                    height=50,
-                    color=function(t)
-                        return t.mouseover and {20,20,20} or {255,255,255,100}
+                text={
+                    value=function(t)
+                        return files[t.index]
                     end,
-                    onClicked=function(t)
-                        return function() print("clicked" .. t.index) end
-                    end
-                }
+                    color=function(t)
+                        return t.mouseover and {255,255,255} or {20,20,20}
+                    end,
+                },
+                onClicked=function(t)
+                    return function() print("clicked" .. t.text.value) end
+                end
             }
-        }
+        },
     }
     
     --button.update()
 
-    print(column.x)
+    --print(column.x)
 end
 
 function love.update(dt)
