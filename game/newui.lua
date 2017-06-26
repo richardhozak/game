@@ -6,13 +6,11 @@ end
 
 local function copy1(obj)
   if type(obj) ~= 'table' then 
-  	print("type", type(obj))
   	return obj 
   end
   local res = {}
   for k, v in pairs(obj) do 
   	res[copy1(k)] = copy1(v) 
-  	print("obj", k, v)
   end
   return res
 end
@@ -189,7 +187,7 @@ function ui.repeater(t)
 	local update = nil
 
 	return function(init)
-		if init and not initalized then
+		if init and not initialized then
 			print("init name", init.name)
 
 			local itemtable = {}
@@ -198,17 +196,14 @@ function ui.repeater(t)
 			local name = item.name
 
 			for i=1, t.times do
-				print("copying")
 				local itemcopy = copy1(item)
 				itemcopy.index = i
-				print("copied")
 				t[i] = ui[name](itemcopy)
-				print("adasd")
 			end
 
 			update = ui[init.name](t, init)
 			--t.spacing = init.spacing
-			initalized = true
+			initialized = true
 		end
 
 		update()
