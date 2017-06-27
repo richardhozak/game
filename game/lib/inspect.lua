@@ -249,6 +249,7 @@ function Inspector:putTable(t)
     local mt                = getmetatable(t)
     local toStringResult    = getToStringResultSafely(t, mt)
 
+    self:tabify()
     self:puts('{')
     self:down(function()
       if toStringResult then

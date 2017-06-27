@@ -35,7 +35,7 @@ local function callIfFunction(func)
 end
 
 -- creates bindings in 'root' table from functions that are present in 'context' table (recursively)
-local function createBindings(bindings, context)
+local function createBindingsOld(bindings, context)
 	for key, value in pairs(context) do
 		if type(value) == "function" then
 			bindings[key] = value
@@ -43,12 +43,32 @@ local function createBindings(bindings, context)
 			print(key, type(key))
 			local subbindings = {}
 			bindings[key] = subbindings
-			createBindings(subbindings, value)
+			createBindingsOld(subbindings, value)
 		end
 	end
 end
 
+local function createBindings(context)
+	local bindings = nil
+	for key, value in pairs(context) do
+		if type(value) == "function" then
+			if not bindings then bindings = {} end
+			bindings[key] = value
+		elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
+			print(key, type(key))
+			local subbindings = createBindings(value)
+			if subbindings then
+				if not bindings then bindings = {} end
+				bindings[key] = subbindings
+			end
+		end
+	end
+
+	return bindings
+end
+
 local function evaluateBindings(bindings, context, arg)
+	if not bindings then return end
 	if not arg then
 		arg = context
 	end
@@ -81,8 +101,7 @@ function ui.button(t, defaults)
 	t.mouseover = false
 
 	if not t.bindings then
-		t.bindings = {}
-		createBindings(t.bindings, t)
+		t.bindings = createBindings(t)
 	end
 
 	local pressedRegistered = false
@@ -92,12 +111,6 @@ function ui.button(t, defaults)
 			local mx, my = love.mouse.getPosition()
 			t.mouseover = pointInRect(mx, my, t.x, t.y, t.width, t.height)
 			
-			--[[for key, value in pairs(t.bindings) do
-				if type(value) == "function" then
-					t[key] = value(t)
-				end
-			end--]]
-
 			evaluateBindings(t.bindings, t)
 
 			if t.mouseover and love.mouse.isDown(1) then
@@ -116,32 +129,46 @@ function ui.button(t, defaults)
 	})
 end
 
+local function applyColumnLayout(t, spacing, root)
+	local width, height = 0, 0
+
+	for index, child in ipairs(t) do
+		child.y = t.y + height
+		child.x = t.x
+		child.parent = child.name and root or nil
+
+		pcall(child)
+		
+		if child.name then
+			height = height + child.height + (index == #t and 0 or spacing)
+			
+			if child.width > width then
+				width = child.width
+			end
+		else
+			local lw, lh = applyColumnLayout(child, spacing, root)
+			height = height + lh + (index == #t or lh == 0 and 0 or spacing)
+			
+			if lw > width then
+				width = width
+			end
+		end
+	end
+
+	return width, height
+end
+
 function ui.column(t, defaults)
 	t.name = "column"
 	t.x = t.x or 0
 	t.y = t.y or 0
+	t.width = t.width or 0
+	t.height = t.height or 0
 	t.spacing = t.spacing or defaults and defaults.spacing or 0
 
 	return setmetatable(t, {
 		__call = function()
-			local width = 0
-			local height = 0
-			for index, child in ipairs(t) do
-				child.parent = t
-				child.y = t.y + height
-				child.x = t.x
-
-				child()
-				
-				height = height + child.height + (index == #t and 0 or t.spacing)
-
-				if child.width > width then
-					width = child.width
-				end
-			end
-			
-			t.width = width
-			t.height = height
+			t.width, t.height = applyColumnLayout(t, t.spacing, t)
 		end
 	})
 end
@@ -154,8 +181,7 @@ function ui.row(t, defaults)
 	t.height = t.height or 0
 	t.spacing = t.spacing or defaults and defaults.spacing or 0
 
-	t.bindings = {}
-	createBindings(t.bindings, t)
+	t.bindings = createBindings(t)
 
 	print(inspect(t))
 
@@ -187,7 +213,7 @@ function ui.row(t, defaults)
 end
 
 function ui.repeater(t, defaults)
-	t.name = "repeater"
+	--t.name = "repeater"
 	t.x = t.x or 0
 	t.y = t.y or 0
 	t.height = 0
@@ -197,41 +223,36 @@ function ui.repeater(t, defaults)
 
 	print("inspect", inspect(t))
 
-	t.bindings = {}
-	createBindings(t.bindings, t)
+	t.bindings = createBindings(t)
 
 	print("inspect", inspect(t))
 
 	local initialized = false
 	local update = nil
 	local lastTimes = 0
+	local delegate = nil
 
 	return setmetatable(t, {
 		__call = function() 
 			evaluateBindings(t.bindings, t)
 
-			print(t.times)
+			if not delegate then
+				delegate = t[1]
+			end
 
 			if lastTimes ~= t.times then
-				local item = t[1]
-				local name = item.name
-
-				for i=1, t.times do
-					local itemcopy = copy3(item)
-					itemcopy.index = i
-					t[i] = ui[name](itemcopy)
+				for index in ipairs (t) do
+				    t[index] = nil
 				end
 
-				if update then
-					print("update set")
-				else
-					update = ui[t.parent.name](t, t.parent)
+				for i=1, t.times do
+					local itemcopy = copy3(delegate)
+					itemcopy.index = i
+					t[i] = ui[delegate.name](itemcopy)
 				end
 
 				lastTimes = t.times
 			end
-
-			update()
 		end
 	})
 end

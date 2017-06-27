@@ -5,56 +5,71 @@ local nui = require("newnewui")
 local files = {
     "one",
     "two",
-    "three",
-    "four"
+    --"three",
+    --"four"
 }
 
 function love.load()
     love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
 
+
+
     column = nui.column {
-        spacing = 5,
+        spacing = 10,
         nui.button {
             width=100,
             height=50,
             color={255,255,255},
-            onClicked=function(t)
+            text={
+                color= {0,0,0},
+                value=function(t) return "Add (" .. #files .. ")" end
+            },
+            onClicked=function(t) 
                 return function() 
-                    table.insert(files, "another one " .. #files)
-                    print("clicked1", #files) 
+                        table.insert(files, "another"..#files) 
+                    end 
                 end
-            end
         },
         nui.repeater {
             times=function() return #files end,
             nui.button {
                 width=100,
                 height=50,
-                color=function(t)
-                    return t.mouseover and {20,20,20} or {255,255,255,100}
+                color=function(t) 
+                    return t.pressed and {255,255,255,100} or t.mouseover and {20,20,20} or {255,255,255}
                 end,
                 text={
-                    value=function(t)
-                        return files[t.index]
-                    end,
-                    color=function(t)
-                        return t.mouseover and {255,255,255} or {20,20,20}
-                    end,
+                    value=function(t) return t.index .. ": " .. files[t.index] end,
+                    color=function(t) return t.mouseover and {255,255,255} or {20,20,20} end,
                 },
-                onClicked=function(t)
-                    return function() print("clicked" .. t.text.value) end
+            },
+        },
+        nui.button {
+            width=100,
+            height=50,
+            color={255,255,255},
+            text={
+                color= {0,0,0},
+                value="Remove"
+            },
+            onClicked=function(t) 
+                return function() 
+                        print("remove clicked")
+                        table.remove(files, #files) 
+                    end 
                 end
-            }
         },
     }
     
     --button.update()
 
     --print(column.x)
+    print(inspect(column))
 end
 
 function love.update(dt)
     column()
+    print(inspect(column))
 end
 
 function love.draw()
