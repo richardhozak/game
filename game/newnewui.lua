@@ -40,7 +40,6 @@ local function createBindingsOld(bindings, context)
 		if type(value) == "function" then
 			bindings[key] = value
 		elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
-			print(key, type(key))
 			local subbindings = {}
 			bindings[key] = subbindings
 			createBindingsOld(subbindings, value)
@@ -55,7 +54,6 @@ local function createBindings(context)
 			if not bindings then bindings = {} end
 			bindings[key] = value
 		elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
-			print(key, type(key))
 			local subbindings = createBindings(value)
 			if subbindings then
 				if not bindings then bindings = {} end
@@ -84,7 +82,6 @@ local function evaluateBindings(bindings, context, arg)
 end
 
 function ui.button(t, defaults)
-	print("t", t.x, t.x, t.width, t.height)
 	t.name = "button"
 	t.x = t.x or 0
 	t.y = t.y or 0
@@ -129,12 +126,43 @@ function ui.button(t, defaults)
 	})
 end
 
+local function applyRowLayout(t, spacing, root)
+	root = root or t
+	local width, height = 0, 0
+	
+	for index, child in ipairs(t) do
+		child.x = t.x + width
+		child.y = t.y
+		child.parent = child.name and root or nil
+
+		pcall(child)
+
+		if child.name then
+			width = width + child.width + (index == #t and 0 or spacing)
+
+			if child.height > height then
+				height = child.height
+			end
+		else
+			local lw, lh = applyRowLayout(child, spacing, root)
+			width = width + lw + ((index == #t or lw == 0) and 0 or spacing)
+
+			if lh > height then
+				height = lh
+			end
+		end
+	end
+
+	return width, height
+end
+
 local function applyColumnLayout(t, spacing, root)
+	root = root or t
 	local width, height = 0, 0
 
 	for index, child in ipairs(t) do
-		child.y = t.y + height
 		child.x = t.x
+		child.y = t.y + height
 		child.parent = child.name and root or nil
 
 		pcall(child)
@@ -147,7 +175,7 @@ local function applyColumnLayout(t, spacing, root)
 			end
 		else
 			local lw, lh = applyColumnLayout(child, spacing, root)
-			height = height + lh + (index == #t or lh == 0 and 0 or spacing)
+			height = height + lh + ((index == #t or lh == 0) and 0 or spacing)
 			
 			if lw > width then
 				width = width
@@ -158,6 +186,43 @@ local function applyColumnLayout(t, spacing, root)
 	return width, height
 end
 
+local function applyColumnLayoutNew(t, spacing, root)
+	root = root or t
+	local width, height = 0, 0
+
+	for index, child in ipairs(t) do
+		local childWidth, childHeight = 0, 0
+		print("index", index)
+		
+		if child.name then
+			child.x = root.x
+			child.y = root.y + height
+			childWidth, childHeight = child.width, child.height
+		else
+			childWidth, childHeight = applyColumnLayoutNew(child, spacing, root)
+		end
+
+		height = height + childHeight + (index == #t and 0 or spacing)
+		if childWidth > width then
+			width = childWidth
+		end
+	end
+
+	return width, height
+end
+
+local function updateChildren(t, root)
+	root = root or t
+	for index, child in ipairs(t) do
+		child.parent = root
+		pcall(child)
+		if not child.name then
+			child.parent = nil
+			updateChildren(child, root)
+		end
+	end
+end
+
 function ui.column(t, defaults)
 	t.name = "column"
 	t.x = t.x or 0
@@ -166,9 +231,15 @@ function ui.column(t, defaults)
 	t.height = t.height or 0
 	t.spacing = t.spacing or defaults and defaults.spacing or 0
 
+	if not t.bindings then
+		t.bindings = createBindings(t)
+	end
+
 	return setmetatable(t, {
 		__call = function()
-			t.width, t.height = applyColumnLayout(t, t.spacing, t)
+			evaluateBindings(t.bindings, t)
+			updateChildren(t)
+			t.width, t.height = applyColumnLayoutNew(t, t.spacing)
 		end
 	})
 end
@@ -181,54 +252,32 @@ function ui.row(t, defaults)
 	t.height = t.height or 0
 	t.spacing = t.spacing or defaults and defaults.spacing or 0
 
-	t.bindings = createBindings(t)
-
-	print(inspect(t))
+	if not t.bindings then
+		t.bindings = createBindings(t)
+	end
 
 	return setmetatable(t, {
 		__call = function()
-			local width = 0
-			local height = 0
-
 			evaluateBindings(t.bindings, t)
-
-			for index, child in ipairs(t) do
-				child.parent = t
-				child.x = t.x + width
-				child.y = t.y
-				
-				child()
-				
-				width = width + child.width + (index == #t and 0 or t.spacing)
-
-				if child.height > height then
-					height = child.height
-				end
-			end
-			
-			t.width = width
-			t.height = height
+			t.width, t.height = applyRowLayout(t, t.spacing, t)
 		end
 	})
 end
 
 function ui.repeater(t, defaults)
-	--t.name = "repeater"
+	t.THIS_IS_REPEATER = ""
 	t.x = t.x or 0
 	t.y = t.y or 0
-	t.height = 0
-	t.width = 0
 	t.times = t.times or 1
-	t.parent = nil
 
-	print("inspect", inspect(t))
+	--print("inspect", inspect(t))
 
-	t.bindings = createBindings(t)
+	if not t.bindings then
+		t.bindings = createBindings(t)
+	end
 
-	print("inspect", inspect(t))
+	--print("inspect", inspect(t))
 
-	local initialized = false
-	local update = nil
 	local lastTimes = 0
 	local delegate = nil
 
@@ -241,14 +290,18 @@ function ui.repeater(t, defaults)
 			end
 
 			if lastTimes ~= t.times then
-				for index in ipairs (t) do
+				--[[for index in ipairs (t) do
+					print("removing", index)
 				    t[index] = nil
-				end
+				end--]]
 
 				for i=1, t.times do
+					print("i", i)
 					local itemcopy = copy3(delegate)
 					itemcopy.index = i
+					print("delegate name", delegate.name)
 					t[i] = ui[delegate.name](itemcopy)
+					--t[i]()
 				end
 
 				lastTimes = t.times
