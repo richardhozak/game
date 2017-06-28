@@ -1,6 +1,7 @@
 local util = require("util")
 local lume = require("lib.lume")
 local bitser = require("lib.bitser")
+local ui = require("ui")
 
 local Object = require("lib.classic")
 local Editor = Object:extend()
@@ -50,9 +51,41 @@ function Editor:reset()
     self.visibility.debug = false
     self.visibility.help = false
     self.camera:setBounds()
+    self.ui = self:createUi()
+end
+
+function Editor:createUi()
+    return ui.column {
+        spacing=10,
+        ui.repeater {
+            times=#tiles,
+            ui.button {
+                width=100,
+                height=50,
+                tile=function(t) return tiles[t.index] end,
+                selected=function(t) return t.index == self.selectedTileIndex end,
+                color=function(t) 
+                    local color = t.tile.color 
+                    color[4] = t.selected and 255 or 100
+                    return color
+                end,
+                border={
+                    width=2,
+                    color=function(t) return t.tile.color end
+                },
+                text={
+                    color={255,255,255},
+                    value=function(t) return t.tile.name end
+                },
+                onClicked=function(t) return function() self.selectedTileIndex = t.index end end
+
+            }
+        }
+    }
 end
 
 function Editor:update(dt)
+    self.ui()
 end
 
 function Editor:draw(x, y, w, h)
@@ -66,8 +99,10 @@ function Editor:draw(x, y, w, h)
 end
 
 function Editor:drawUi()
-    self:drawToolbar(0,0)
+    --self:drawToolbar(0,0)
     --self:drawDebugInfo()
+
+    ui.draw(self.ui)
 
     if self.visibility.minimap then
         local screenWidth, screenHeight = love.graphics.getDimensions()
@@ -103,7 +138,6 @@ function Editor:drawToolbar(x, y)
         end
         love.graphics.pop()
 
-            
         love.graphics.pop() 
     end
 end
