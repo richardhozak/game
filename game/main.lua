@@ -1,59 +1,14 @@
 inspect = require("lib.inspect")
 
 local Game = require("game")
-local nui = require("newnewui")
-local files = {
-    "one",
-    "two",
-    --"three",
-    --"four"
-}
+local ui = require("ui")
+local game
 
 function love.load()
     love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
-
-    column = nui.column {
-        x=10,y=10,
-        spacing=10,
-        {
-            nui.button {
-                width=100,
-                height=50,
-                color={200,200,200,200}
-            },
-            nui.button {
-                width=100,
-                height=50,
-                color={200,200,200,200}
-            },
-            nui.button {
-                width=100,
-                height=50,
-                color={200,200,200,200}
-            },
-            nui.button {
-                width=100,
-                height=50,
-                color={200,200,200,200}
-            }
-        }
-    }
-    
-    print(inspect(column))
-    column()
+    game = Game()
 end
 
-function love.update(dt)
-    column()
-end
-
-function love.draw()
-    nui.drawItem(column)
-    love.graphics.setColor(255,255,255)
-    love.graphics.rectangle("line", column.x, column.y, column.width, column.height)
-end
-
---[[
 function love.update(dt)
     game:update(dt)
 end
@@ -89,4 +44,3 @@ end
 function love.wheelmoved(x, y)
     game:wheelMoved(x, y)
 end
---]]

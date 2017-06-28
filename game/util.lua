@@ -14,4 +14,19 @@ util.drawFilledCircle = function(x, y, radius, r, g, b)
 	love.graphics.circle("line", x, y, radius)
 end
 
+function util.clone(t)
+    if type(t) ~= "table" then return t end
+    local meta = getmetatable(t)
+    local target = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            target[k] = clone(v)
+        else
+            target[k] = v
+        end
+    end
+    setmetatable(target, meta)
+    return target
+end
+
 return util

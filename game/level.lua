@@ -3,8 +3,6 @@ local bump = require("lib.bump")
 local Player = require("entities.player")
 local Block = require("entities.block")
 
-local nk = require("nuklear")
-
 local Level = Object:extend()
 
 function Level:new(map, camera)
@@ -137,6 +135,7 @@ function Level:updateUi()
         local windowOffsetY = 50
         local windowOffsetX = (width-windowWidth)/2
 
+        --[[
         if nk.windowBegin("Pause", windowOffsetX, windowOffsetY, windowWidth, windowHeight, "title") then
             nk.layoutRow("dynamic", 35, 1)
             if nk.button("Resume") then
@@ -147,6 +146,7 @@ function Level:updateUi()
             end
         end
         nk.windowEnd()
+        ]]
     end
 end
 
