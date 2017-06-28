@@ -1,4 +1,5 @@
 local ui = {}
+local layout = {}
 
 local function pointInRect(px, py, rx, ry, rw, rh)
 	return px >= rx and px <= rx + rw and py >= ry and py <= ry + rh
@@ -126,83 +127,72 @@ function ui.button(t, defaults)
 	})
 end
 
-local function applyRowLayout(t, spacing, root)
+function layout.row(t, spacing, root)
 	root = root or t
 	local width, height = 0, 0
 	
 	for index, child in ipairs(t) do
-		child.x = t.x + width
-		child.y = t.y
-		child.parent = child.name and root or nil
-
-		pcall(child)
+		local childWidth, childHeight = 0, 0
 
 		if child.name then
-			width = width + child.width + (index == #t and 0 or spacing)
-
-			if child.height > height then
-				height = child.height
-			end
+			child.x = root.x + width
+			child.y = root.y
+			childWidth, childHeight = child.width, child.height
 		else
-			local lw, lh = applyRowLayout(child, spacing, root)
-			width = width + lw + ((index == #t or lw == 0) and 0 or spacing)
-
-			if lh > height then
-				height = lh
-			end
+			childWidth, childHeight = layout.row(child, spacing, root)
 		end
-	end
-
-	return width, height
-end
-
-local function applyColumnLayout(t, spacing, root)
-	root = root or t
-	local width, height = 0, 0
-
-	for index, child in ipairs(t) do
-		child.x = t.x
-		child.y = t.y + height
-		child.parent = child.name and root or nil
-
-		pcall(child)
 		
-		if child.name then
-			height = height + child.height + (index == #t and 0 or spacing)
-			
-			if child.width > width then
-				width = child.width
+		local islast = index == #t
+		local childSpacing = spacing
+
+		if islast then
+			if childWidth == 0 then
+				childSpacing = -spacing
+			else
+				childSpacing = 0
 			end
-		else
-			local lw, lh = applyColumnLayout(child, spacing, root)
-			height = height + lh + ((index == #t or lh == 0) and 0 or spacing)
-			
-			if lw > width then
-				width = width
-			end
+		elseif childWidth == 0 then
+			childSpacing = 0
+		end
+
+		width = width + childWidth + childSpacing
+		if childHeight > height then
+			height = childHeight
 		end
 	end
 
 	return width, height
 end
 
-local function applyColumnLayoutNew(t, spacing, root)
+function layout.column(t, spacing, root)
 	root = root or t
 	local width, height = 0, 0
 
 	for index, child in ipairs(t) do
 		local childWidth, childHeight = 0, 0
-		print("index", index)
-		
+
 		if child.name then
 			child.x = root.x
 			child.y = root.y + height
 			childWidth, childHeight = child.width, child.height
 		else
-			childWidth, childHeight = applyColumnLayoutNew(child, spacing, root)
+			childWidth, childHeight = layout.column(child, spacing, root)
 		end
 
-		height = height + childHeight + (index == #t and 0 or spacing)
+		local islast = index == #t
+		local childSpacing = spacing
+
+		if islast then
+			if childWidth == 0 then
+				childSpacing = -spacing
+			else
+				childSpacing = 0
+			end
+		elseif childWidth == 0 then
+			childSpacing = 0
+		end
+
+		height = height + childHeight + childSpacing
 		if childWidth > width then
 			width = childWidth
 		end
