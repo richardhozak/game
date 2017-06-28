@@ -1,32 +1,25 @@
 local ui = {}
 local layout = {}
+local update = {}
 
 local function pointInRect(px, py, rx, ry, rw, rh)
 	return px >= rx and px <= rx + rw and py >= ry and py <= ry + rh
 end
 
-local function copy1(obj)
-  if type(obj) ~= 'table' then 
-  	return obj 
-  end
-  local res = {}
-  for k, v in pairs(obj) do 
-  	res[copy1(k)] = copy1(v) 
-  end
-  return res
-end
-
-local function copy3(obj, seen)
-  -- Handle non-tables and previously-seen tables.
-  if type(obj) ~= 'table' then return obj end
-  if seen and seen[obj] then return seen[obj] end
-
-  -- New table; mark it as seen an copy recursively.
-  local s = seen or {}
-  local res = setmetatable({}, getmetatable(obj))
-  s[obj] = res
-  for k, v in pairs(obj) do res[copy3(k, s)] = copy3(v, s) end
-  return res
+-- deep-copy a table
+local function clone(t)
+    if type(t) ~= "table" then return t end
+    local meta = getmetatable(t)
+    local target = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            target[k] = clone(v)
+        else
+            target[k] = v
+        end
+    end
+    setmetatable(target, meta)
+    return target
 end
 
 local function callIfFunction(func)
@@ -35,19 +28,19 @@ local function callIfFunction(func)
 	end
 end
 
--- creates bindings in 'root' table from functions that are present in 'context' table (recursively)
-local function createBindingsOld(bindings, context)
-	for key, value in pairs(context) do
-		if type(value) == "function" then
-			bindings[key] = value
-		elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
-			local subbindings = {}
-			bindings[key] = subbindings
-			createBindingsOld(subbindings, value)
+local function updateChildren(t, root)
+	root = root or t
+	for index, child in ipairs(t) do
+		child.parent = root
+		pcall(child)
+		if not child.name then
+			child.parent = nil
+			updateChildren(child, root)
 		end
 	end
 end
 
+-- creates bindings table from functions that are present in 'context' table (recursively)
 local function createBindings(context)
 	local bindings = nil
 	for key, value in pairs(context) do
@@ -82,13 +75,46 @@ local function evaluateBindings(bindings, context, arg)
 	end
 end
 
-function ui.button(t, defaults)
+function update.button(t)
+	local mx, my = love.mouse.getPosition()
+	t.mouseover = pointInRect(mx, my, t.x, t.y, t.width, t.height)
+
+	evaluateBindings(t.bindings, t)
+
+	if t.mouseover and love.mouse.isDown(1) then
+		t.pressed = true
+		if not t.pressedRegistered then
+			t.pressedRegistered = true
+			callIfFunction(t.onPressed)
+		end
+	elseif t.pressed then
+		t.pressed = false
+		t.pressedRegistered = false
+		callIfFunction(t.onClicked)
+		callIfFunction(t.onReleased)
+	end
+end
+
+function update.column(t)
+	evaluateBindings(t.bindings, t)
+	t.width, t.height = layout.column(t, t.spacing)
+	updateChildren(t)
+end
+
+function update.row(t)
+	evaluateBindings(t.bindings, t)
+	t.width, t.height = layout.row(t, t.spacing)
+	updateChildren(t)
+end
+
+function ui.button(t)
 	t.name = "button"
 	t.x = t.x or 0
 	t.y = t.y or 0
 	t.radius = t.radius or 0
 	t.width = t.width or 0
 	t.height = t.height or 0
+	t.color = t.color or {255,255,255}
 
 	if t.border then
 		t.border.width = t.border.width or 0
@@ -102,28 +128,10 @@ function ui.button(t, defaults)
 		t.bindings = createBindings(t)
 	end
 
-	local pressedRegistered = false
+	t.pressedRegistered = false
 
 	return setmetatable(t, {
-		__call = function()
-			local mx, my = love.mouse.getPosition()
-			t.mouseover = pointInRect(mx, my, t.x, t.y, t.width, t.height)
-			
-			evaluateBindings(t.bindings, t)
-
-			if t.mouseover and love.mouse.isDown(1) then
-				t.pressed = true
-				if not pressedRegistered then
-					pressedRegistered = true
-					callIfFunction(t.onPressed)
-				end
-			elseif t.pressed then
-				t.pressed = false
-				pressedRegistered = false
-				callIfFunction(t.onClicked)
-				callIfFunction(t.onReleased)
-			end
-		end
+		__call = update.button
 	})
 end
 
@@ -201,102 +209,99 @@ function layout.column(t, spacing, root)
 	return width, height
 end
 
-local function updateChildren(t, root)
-	root = root or t
-	for index, child in ipairs(t) do
-		child.parent = root
-		pcall(child)
-		if not child.name then
-			child.parent = nil
-			updateChildren(child, root)
-		end
-	end
-end
-
-function ui.column(t, defaults)
+function ui.column(t)
 	t.name = "column"
 	t.x = t.x or 0
 	t.y = t.y or 0
 	t.width = t.width or 0
 	t.height = t.height or 0
-	t.spacing = t.spacing or defaults and defaults.spacing or 0
+	t.spacing = t.spacing or 0
 
 	if not t.bindings then
 		t.bindings = createBindings(t)
 	end
 
 	return setmetatable(t, {
-		__call = function()
-			evaluateBindings(t.bindings, t)
-			updateChildren(t)
-			t.width, t.height = applyColumnLayoutNew(t, t.spacing)
-		end
+		__call = update.column
 	})
 end
 
-function ui.row(t, defaults)
+function ui.row(t)
 	t.name = "row"
 	t.x = t.x or 0
 	t.y = t.y or 0
 	t.width = t.width or 0
 	t.height = t.height or 0
-	t.spacing = t.spacing or defaults and defaults.spacing or 0
+	t.spacing = t.spacing or 0
 
 	if not t.bindings then
 		t.bindings = createBindings(t)
 	end
 
 	return setmetatable(t, {
-		__call = function()
-			evaluateBindings(t.bindings, t)
-			t.width, t.height = applyRowLayout(t, t.spacing, t)
-		end
+		__call = update.row
 	})
 end
 
-function ui.repeater(t, defaults)
-	t.THIS_IS_REPEATER = ""
+local function clearArray(t)
+	for index, value in ipairs(t) do
+		t[index] = nil
+	end
+end
+
+function update.repeater(t)
+	evaluateBindings(t.bindings, t)
+
+	if t.times < 0 then
+		t.times = 0
+	end
+
+	if t.times ~= t.lastTimes then
+		if t.times > t.lastTimes then
+			local appendTimes = t.times - t.lastTimes
+			for i=1, appendTimes do
+				local item = clone(t.delegate)
+				local index = #t+1
+				item.index = index
+				t[index] = item
+			end
+		elseif t.times < t.lastTimes then
+			local removeTimes = t.lastTimes - t.times
+			for i=1, removeTimes do
+				t[#t] = nil
+			end
+		end
+
+		t.lastTimes = t.times
+	end
+
+	if t.parent then
+		t.width, t.height = layout[t.parent.name](t, t.parent.spacing)
+	else
+		print("repeater does not have parent")
+	end
+
+	updateChildren(t)
+end
+
+function ui.repeater(t)
+	t.name = "repeater"
 	t.x = t.x or 0
 	t.y = t.y or 0
+	t.width = t.width or 0
+	t.height = t.height or 0
 	t.times = t.times or 1
-
-	--print("inspect", inspect(t))
 
 	if not t.bindings then
 		t.bindings = createBindings(t)
 	end
 
-	--print("inspect", inspect(t))
-
-	local lastTimes = 0
-	local delegate = nil
+	t.lastTimes = 0
+	t.delegate = t.delegate or clone(t[1])
+	t[1] = nil
 
 	return setmetatable(t, {
-		__call = function() 
-			evaluateBindings(t.bindings, t)
-
-			if not delegate then
-				delegate = t[1]
-			end
-
-			if lastTimes ~= t.times then
-				--[[for index in ipairs (t) do
-					print("removing", index)
-				    t[index] = nil
-				end--]]
-
-				for i=1, t.times do
-					print("i", i)
-					local itemcopy = copy3(delegate)
-					itemcopy.index = i
-					print("delegate name", delegate.name)
-					t[i] = ui[delegate.name](itemcopy)
-					--t[i]()
-				end
-
-				lastTimes = t.times
-			end
-		end
+		__call = update.repeater
 	})
 end
 
@@ -323,6 +328,16 @@ function ui.drawItem(item)
 			for index, child in ipairs(item) do
 				ui.drawItem(child)
 			end
+
+			if item.name == "repeater" then
+				love.graphics.setColor(100,255,100, 100)
+			elseif item.name == "row" then
+				love.graphics.setColor(255,100,100,150)
+			else
+				love.graphics.setColor(255,255,255,0)
+			end
+
+			love.graphics.rectangle("line", item.x, item.y, item.width, item.height)
 		end
 	end
 end
