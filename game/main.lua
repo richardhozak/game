@@ -5,7 +5,10 @@ local ui = require("ui")
 local game
 
 function love.load()
-    love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
+    io.stdout:setvbuf("no")
+    -- love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
+    love.window.setMode(800, 600, {x=2100, y=800, resizable=true})
+    print("game started")
     game = Game()
 end
 

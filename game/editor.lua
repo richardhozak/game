@@ -51,58 +51,70 @@ function Editor:reset()
     self.visibility.debug = false
     self.visibility.help = false
     self.camera:setBounds()
-    self.ui = self:createUi()
+    self.mouseLeftPressed = false
+    self.mouseRightPressed = false
+    self.toolbar = self:createToolbar()
 end
 
-function Editor:createUi()
+function Editor:paintTile(index, x, y)
+    local mapItems = self.map.items
+    if mapItems[x] == nil then
+        mapItems[x] = {}
+    end
+
+    mapItems[x][y] = index
+end
+
+function Editor:createToolbar()
     return ui.column {
+        x=10,y=10,
         spacing=10,
         ui.repeater {
             times=#tiles,
             ui.button {
-                width=100,
+                width=75,
                 height=50,
                 tile=function(t) return tiles[t.index] end,
                 selected=function(t) return t.index == self.selectedTileIndex end,
                 color=function(t) 
-                    local color = t.tile.color 
-                    color[4] = t.selected and 255 or 100
+                    local color = {0,0,0,t.selected and 255 or 100}
+                    color[1], color[2], color[3] = t.tile.color[1], t.tile.color[2], t.tile.color[3]
                     return color
                 end,
                 border={
-                    width=2,
+                    width=1,
                     color=function(t) return t.tile.color end
                 },
                 text={
-                    color={255,255,255},
+                    color=function(t)
+                      return t.selected and ui.lightness(t.tile.color) > 0.7 and {50,50,50} or {255,255,255}
+                    end,
                     value=function(t) return t.tile.name end
                 },
-                onClicked=function(t) return function() self.selectedTileIndex = t.index end end
-
+                onPressed=function(t) return function() self.selectedTileIndex = t.index end end
             }
         }
     }
 end
 
 function Editor:update(dt)
-    self.ui()
+    self.toolbar()
 end
 
 function Editor:draw(x, y, w, h)
     self:drawCheckerBoard(x,y,w,h)
     self:drawMapBorder()
     self:drawMap()
-
-    if self.visibility.debug then
-        self:dragDebugInfo()
-    end
 end
 
 function Editor:drawUi()
     --self:drawToolbar(0,0)
-    --self:drawDebugInfo()
+    if self.visibility.debug then
+        self:drawDebugInfo()
+    end
+    self:drawHelp()
 
-    ui.draw(self.ui)
+    ui.draw(self.toolbar)
 
     if self.visibility.minimap then
         local screenWidth, screenHeight = love.graphics.getDimensions()
@@ -214,6 +226,15 @@ function Editor:drawMinimap(x, y, w, h, scale)
     love.graphics.setScissor()
 end
 
+function Editor:drawHelp()
+    local width, height = love.graphics.getDimensions()
+    love.graphics.setColor(255,255,255)
+    love.graphics.print(helpToggle, width - self.font:getWidth(helpToggle), 0)
+    if self.visibility.help then
+        love.graphics.printf(help, width - 200, self.font:getHeight(),200,"right")
+    end
+end
+
 function Editor:drawFilePrompt()
     local x,y = 0,0
     local width, height = love.graphics.getDimensions()
@@ -276,10 +297,28 @@ end
 function Editor:drawDebugInfo()
     love.graphics.setColor(255,255,255)
 
-    love.graphics.print(string.format(debugInfo, self.camera.x, self.camera.y, 
+    local screenHeight = love.graphics.getHeight()
+
+    local text = string.format(debugInfo, 
+        self.camera.x, self.camera.y, 
         math.floor(self.camera.x/self.tileSize), math.floor(self.camera.y/self.tileSize),
         self.camera:getMouseX(), self.camera:getMouseY(),
-        math.floor(self.camera:getMouseX() / self.tileSize), math.floor(self.camera:getMouseY() / self.tileSize)))
+        math.floor(self.camera:getMouseX() / self.tileSize), math.floor(self.camera:getMouseY() / self.tileSize))
+
+    local width, wrappedtext = self.font:getWrap(text, 200)
+    local lineHeight = self.font:getLineHeight()
+    local increment = lineHeight * self.font:getHeight()
+
+    local y = screenHeight - (#wrappedtext * increment)
+
+    for i=1, #wrappedtext do
+        love.graphics.print(wrappedtext[i], 0, y)
+        y = y + increment
+    end
+
+    --love.graphics.printf(text, 0, y, width)
+
+    
 end
 
 function Editor:getSelectedPosition(items, comparer)
@@ -321,6 +360,10 @@ function Editor:normalizeMap()
     end
 
     return items, len
+end
+
+function Editor:toMapCoordinates(worldX, worldY)
+    return math.floor(worldX / self.tileSize), math.floor(worldY / self.tileSize)
 end
 
 function Editor:load(filename)
@@ -372,11 +415,33 @@ function Editor:save(filename)
 end
 
 function Editor:mousePressed(x, y, button)
+    print("pressed", x, y, button)
 
+
+    if ui.mouse:pressed(x, y, button) then
+        print("ui pressed")
+        return
+    end
+
+
+    if button == 1 then
+        self.mouseLeftPressed = true
+        local worldX, worldY = self.camera:toWorld(x, y)
+        local tileX, tileY = self:toMapCoordinates(worldX, worldY)
+        local index = self.selectedTileIndex 
+        self:paintTile(index ~= 1 and index or nil, tileX, tileY)
+    elseif button == 2 then
+        self.mouseRightPressed = true
+    end
 end
 
 function Editor:mouseReleased(x, y, button)
-
+    print("released", x, y, button)
+    if button == 1 then
+        self.mouseLeftPressed = false
+    elseif button == 2 then
+        self.mouseRightPressed = false
+    end
 end
 
 function Editor:wheelMoved(x, y)
@@ -388,7 +453,12 @@ function Editor:wheelMoved(x, y)
 end
 
 function Editor:mouseMoved(x, y, dx, dy, istouch)
-    if love.mouse.isDown(2) then
+    if self.mouseLeftPressed then
+        local worldX, worldY = self.camera:toWorld(x, y)
+        local tileX, tileY = self:toMapCoordinates(worldX, worldY)
+        local index = self.selectedTileIndex 
+        self:paintTile(index ~= 1 and index or nil, tileX, tileY)
+    elseif self.mouseRightPressed then
         self.camera:move(-dx, -dy)
     end
 end

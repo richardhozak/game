@@ -70,7 +70,7 @@ function Game:draw()
     end
     --]]
 
-    self:drawDebugInfo()
+    --self:drawDebugInfo()
 end
 
 function Game:drawDebugInfo()
@@ -149,19 +149,31 @@ function Game:saveGame(level)
 end
 
 function Game:keyPressed(key, scancode, isrepeat)
-    
+    if key == "escape" then
+        love.event.quit()
+    end
+
+    if self.editor then
+        self.editor:keyPressed(key, scancode, isrepeate)
+    end
 end
 
 function Game:keyReleased(key, scancode)
-    
+    if self.editor then
+        self.editor:keyReleased(key, scancode)
+    end
 end
 
 function Game:mousePressed(x, y, button, istouch)
-
+    if self.editor then
+        self.editor:mousePressed(x, y, button, istouch)
+    end
 end
 
 function Game:mouseReleased(x, y, button, istouch)
-
+    if self.editor then
+        self.editor:mouseReleased(x, y, button, istouch)
+    end
 end
 
 function Game:mouseMoved(x, y, dx, dy, istouch)

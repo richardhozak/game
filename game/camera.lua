@@ -96,6 +96,10 @@ function Camera:getMouseY()
     return love.mouse.getY() * self.scale + self.y
 end
 
+function Camera:toWorld(x, y)
+    return x * self.scale + self.x, y * self.scale + self.y
+end
+
 function Camera:setScale(scale)
     self.scale = lume.clamp(scale, 1, 4)
 end
