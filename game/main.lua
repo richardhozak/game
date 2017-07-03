@@ -1,8 +1,8 @@
 inspect = require("lib.inspect")
 
 local Game = require("game")
-local ui = require("ui")
-local nui = require("newui")
+local oui = require("ui")
+local ui = require("newui")
 local game
 
 function love.load()
@@ -13,21 +13,66 @@ function love.load()
     love.window.setMode(800, 600, {x=2100, y=800, resizable=true})
     print("game started")
     game = Game()
-    button = nui.button {
-        x=10,y=10,
-        width=100,
-        height=50,
-        color={255,255,255}
+    view = ui.view {
+        id="view1",
+        ui.row {
+            id="column1",
+            x=0,y=0,spacing=20,
+            ui.button {
+                id="button1",
+                onPressed=function(self) return function() print("first pressed") end end,
+                onReleased=function(self) return function() print("first released") end end,
+                onClicked=function(self) return function() print("first clicked") end end,
+                onCanceled=function(self) return function() print("first canceled") end end,
+                color=function(self) 
+                    return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
+                end
+            },
+            ui.button {
+                id="button2",
+                onPressed=function(self) return function() print("first pressed") end end,
+                onReleased=function(self) return function() print("first released") end end,
+                onClicked=function(self) return function() print("first clicked") end end,
+                onCanceled=function(self) return function() print("first canceled") end end,
+                color=function(self) 
+                    return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
+                end
+            }
+        }
     }
-    print(inspect(button))
+    print(inspect(view))
 end
 
 function love.update(dt)
-    button:update()
+    view:update()
+    --print(inspect(view))
 end
 
 function love.draw()
-    button:draw()
+    view:draw()
+end
+
+function love.mousepressed(x, y, button, istouch)
+    local pressed = view:mousePressed(x, y, button, istouch)
+    print("mousepressed", x, y, button, pressed)
+
+end
+
+function love.mousereleased(x, y, button, istouch)
+    local released = view:mouseReleased(x, y, button, istouch)
+    print("mousereleased", x, y, button, released)
+end
+
+function love.mousemoved(x, y, dx, dy, istouch)
+    local moved = view:mouseMoved(x, y, dx, dy, istouch)
+    -- print("mousemoved", x, y, dx, dy, moved)
+end
+
+function love.keypressed(key)
+   if key == "tab" then
+      local state = not love.mouse.isGrabbed()   -- the opposite of whatever it currently is
+      love.mouse.setGrabbed(state)
+   end
 end
 
 -- function love.update(dt)

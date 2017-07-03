@@ -13,11 +13,15 @@ end
 local function updateChildren(t, root)
 	root = root or t
 	for index, child in ipairs(t) do
-		child.parent = root
-		pcall(child)
-		if not child.name then
-			child.parent = nil
-			updateChildren(child, root)
+		if child.name then
+			child.parent = root
+			child:update()
+		else
+			if type(child.update) == "function" then
+				child:update()
+			else
+				updateChildren(child, root)
+			end
 		end
 	end
 end
@@ -57,13 +61,35 @@ local function evaluateBindings(bindings, context, arg)
 	end
 end
 
+local View = Item:extend("view")
+function View:new()
+	self.x = self.x or 0
+	self.y = self.y or 0
+	self.width = self.width or love.graphics.getWidth()
+	self.height = self.height or love.graphics.getHeight()
+end
+
+function View:update()
+	for index, child in ipairs(self) do
+		child:layout()
+	end
+
+	updateChildren(self)
+end
+
+function View:draw()
+	for index, child in ipairs(self) do
+		child:draw()
+	end
+end
+
 local Button = Item:extend("button")
 function Button:new()
 	self.x = self.x or 0
 	self.y = self.y or 0
 	self.radius = self.radius or 0
-	self.width = self.width or 0
-	self.height = self.height or 0
+	self.width = self.width or 100
+	self.height = self.height or 50
 	self.color = self.color or {255,255,255}
 
 	if self.border then
@@ -75,39 +101,22 @@ function Button:new()
 	self.mouseover = false
 	self.down = false
 
-	if not self.bindings then
-		self.bindings = createBindings(self)
-	end
-
-	self.pressedRegistered = false
-
-	print("bindings", inspect(self.bindings))
+	self.bindings = createBindings(self)
 end
 
 function Button:update()
-	local mx, my = love.mouse.getPosition()
-	self.mouseover = pointInRect(mx, my, self.x, self.y, self.width, self.height)
-
 	evaluateBindings(self.bindings, self)
 
-	if love.mouse.isDown(1) then
+	if self.down then
 		if self.mouseover then
-			if not self.down then
-				self.down = true
+			if not self.pressed then
+				self.pressed = true
 				callIfFunction(self.onPressed)
 			end
-			self.pressed = true
-		else
-			self.pressed = false
 		end
 	else
-		if self.down then
-			if currentItem == t then
-				currentItem = nil
-			end
-
+		if self.pressed then
 			self.pressed = false
-			self.down = false
 			if self.mouseover then
 				callIfFunction(self.onReleased)
 				callIfFunction(self.onClicked)
@@ -137,7 +146,126 @@ function Button:draw()
 	end
 end
 
-function Button:layout()
+local Column = Item:extend("column")
+function Column:new()
+	self.x = self.x or 0
+	self.y = self.y or 0
+	self.width = self.width or 0
+	self.height = self.height or 0
+	self.spacing = self.spacing or 10
+	self.bindings = createBindings(self)
+end
+
+function Column:update()
+	evaluateBindings(self.bindings, self)
+	updateChildren(self)
+end
+
+function Column:draw()
+	for index, child in ipairs(self) do
+		child:draw()
+	end
+end
+
+function Column:layout()
+	local function doLayout(t, spacing, root)
+		root = root or t
+		local width, height = 0, 0
+
+		for index, child in ipairs(t) do
+			local childWidth, childHeight = 0, 0
+
+			if child.name then
+				child.x = root.x
+				child.y = root.y + height
+				childWidth, childHeight = child.width, child.height
+			else
+				childWidth, childHeight = doLayout(child, spacing, root)
+			end
+
+			local islast = index == #t
+			local childSpacing = spacing
+
+			if islast then
+				if childWidth == 0 then
+					childSpacing = -spacing
+				else
+					childSpacing = 0
+				end
+			elseif childWidth == 0 then
+				childSpacing = 0
+			end
+
+			height = height + childHeight + childSpacing
+			if childWidth > width then
+				width = childWidth
+			end
+		end
+
+		return width, height
+	end
+
+	self.width, self.height = doLayout(self, self.spacing)
+end
+
+local Row = Item:extend("row")
+function Row:new()
+	self.x = self.x or 0
+	self.y = self.y or 0
+	self.width = self.width or 0
+	self.height = self.height or 0
+	self.spacing = self.spacing or 10
+	self.bindings = createBindings(self)
+end
+
+function Row:update()
+	evaluateBindings(self.bindings, self)
+	updateChildren(self)
+end
+
+function Row:layout()
+	local function doLayout(t, spacing, root)
+		root = root or t
+		local width, height = 0, 0
+		
+		for index, child in ipairs(t) do
+			local childWidth, childHeight = 0, 0
+
+			if child.name then
+				child.x = root.x + width
+				child.y = root.y
+				childWidth, childHeight = child.width, child.height
+			else
+				childWidth, childHeight = doLayout(child, spacing, root)
+			end
+			
+			local islast = index == #t
+			local childSpacing = spacing
+
+			if islast then
+				if childWidth == 0 then
+					childSpacing = -spacing
+				else
+					childSpacing = 0
+				end
+			elseif childWidth == 0 then
+				childSpacing = 0
+			end
+
+			width = width + childWidth + childSpacing
+			if childHeight > height then
+				height = childHeight
+			end
+		end
+
+		return width, height
+	end
+
+	self.width, self.height = doLayout(self, self.spacing)
+end
+
+local Repeater = Item:extend("repeater")
+function Repeater:new()
 end
 
 local function components()
