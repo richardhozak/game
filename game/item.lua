@@ -17,8 +17,8 @@ function Item:draw()
 end
 
 function Item:containsPoint(x, y)
-    return x >= self.x and x <= self.x + self.width 
-       and y >= self.y and y <= self.y + self.height
+    return x > self.x and x < self.x + self.width 
+       and y > self.y and y < self.y + self.height
 end
 
 function Item:mousePressed(x, y, button, istouch)
