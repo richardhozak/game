@@ -77,7 +77,6 @@ function Item:mouseMoved(x, y, dx, dy, istouch)
 end
 
 function Item:extend(name)
-    if not name then error("must supply name") end
     local cls = {}
     for k, v in pairs(self) do
         if k:find("__") == 1 then
