@@ -5,6 +5,8 @@ local oui = require("ui")
 local ui = require("newui")
 local game
 
+local count = 2
+
 function love.load()
     io.stdout:setvbuf("no")
     
@@ -13,33 +15,43 @@ function love.load()
     love.window.setMode(800, 600, {x=2100, y=800, resizable=true})
     print("game started")
     game = Game()
-    view = ui.view {
-        id="view1",
-        ui.row {
-            id="column1",
-            x=0,y=0,spacing=20,
+    view = ui.column {
+        id="rootcolumn",
+        x=0,y=0,spacing=20,
+        ui.repeater {
+            id="toprepeater",
+            times=function(self) return count end,
             ui.button {
-                id="button1",
-                onPressed=function(self) return function() print("first pressed") end end,
-                onReleased=function(self) return function() print("first released") end end,
-                onClicked=function(self) return function() print("first clicked") end end,
-                onCanceled=function(self) return function() print("first canceled") end end,
-                color=function(self) 
-                    return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
-                end
+                id="toprepeaterbutton",
+                radius=20,
+                onPressed=function(self) return function() count = count + 1 end end
             },
-            ui.button {
-                id="button2",
-                onPressed=function(self) return function() print("first pressed") end end,
-                onReleased=function(self) return function() print("first released") end end,
-                onClicked=function(self) return function() print("first clicked") end end,
-                onCanceled=function(self) return function() print("first canceled") end end,
-                color=function(self) 
-                    return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
-                end
+        },
+        ui.button {
+            id="increment",
+            onPressed=function(self) return function() count = count + 1 end end
+        },
+        ui.button {
+            id="decrement",
+            onPressed=function(self) return function() count = count - 1 end end
+        },
+        ui.repeater {
+            id="bottomrepeater",
+            times=function(self) return count end,
+            ui.row {
+                id="bottomrepeaterrow",
+                ui.repeater {
+                    id="rowbutton",
+                    times=3,
+                    ui.button {
+                        radius=20,
+                        onPressed=function(self) return function() self.parent.times = self.parent.times + 1 end end
+                    },
+                }
             }
-        }
+        },
     }
+    
     print(inspect(view))
 end
 
