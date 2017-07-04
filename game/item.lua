@@ -8,6 +8,9 @@ function Item:update()
 end
 
 function Item:layout()
+    for index, child in ipairs(self) do
+        child:layout()
+    end
 end
 
 function Item:draw()
