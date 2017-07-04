@@ -1,62 +1,79 @@
-local util = require("util")
+local requiredir = (...):match("(.-)[^%.]+$")
+local function requireitem(item) return require(requiredir .. item) end
 
-local Item = require("ui.item")
-local Button = Item:extend()
+local util = requireitem("util")
+local Item = requireitem("item")
 
-function Button:new(ui, width, height, options)
-    Button.super.new(self, ui, width, height)
-    self.color = options.color
-    self.text = options.text
-    self.pressedEmitted = false
-    self.onPressed = options.onPressed
-    self.onClicked = options.onClicked
-    self.font = love.graphics.getFont()
+local Button = Item:extend("button")
+function Button:new()
+	self.x = self.x or 0
+	self.y = self.y or 0
+	self.radius = self.radius or 0
+	self.width = self.width or 100
+	self.height = self.height or 50
+	self.color = self.color or function(self) 
+		                           return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
+		                       end
+
+	if self.border then
+		self.border.width = self.border.width or 0
+		self.border.color = self.border.color or {0,0,0,0}
+	else
+		self.border = {
+            width=1,
+            color={123,123,123}
+        }
+	end
+
+	self.pressed = false
+	self.mouseover = false
+	self.down = false
+
+	self.bindings = self:createBindings()
 end
 
-function Button:update(dt)
-	Button.super.update(self, dt)
-	if self.isPressed then
-		if not self.pressedEmitted then
-			self.pressedEmitted = true
-			if type(self.onPressed) == "function" then
-				self.onPressed()
+function Button:update()
+	self:evaluateBindings(self.bindings)
+
+	if self.down then
+		if self.mouseover then
+			if not self.pressed then
+				self.pressed = true
+				util.emit(self.onPressed)
 			end
 		end
 	else
-		if self.pressedEmitted and type(self.onClicked) == "function" and self.mouseOver then
-			self.onClicked()
+		if self.pressed then
+			self.pressed = false
+			if self.mouseover then
+				util.emit(self.onReleased)
+				util.emit(self.onClicked)
+			else
+				util.emit(self.onCanceled)
+			end
 		end
-		self.pressedEmitted = false
 	end
+
+	self.super.update(self)
 end
 
 function Button:draw()
-	util.drawFilledRectangle(self.x, self.y, self.width, self.height, unpack(self.color))
-	if self.isPressed then
-		love.graphics.setColor(255,255,255)
-	elseif self.mouseOver then
-		love.graphics.setColor(255,255,255,20)
-		love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
-		love.graphics.setColor(255,255,255)
-	end
+	love.graphics.setColor(self.color)
+	love.graphics.rectangle("fill", self.x, self.y, self.width, self.height, self.radius)
 	
-	local centerX, centerY = self:getCenter()
-	local text = type(self.text) == "function" and self.text() or self.text
-	local textX = centerX - self.font:getWidth(text) / 2
-	local textY = centerY - self.font:getHeight() / 2
-	textX = math.floor(textX)
-	textY = math.floor(textY)
-	love.graphics.print(text, textX, textY)
-end
+	if self.border then
+		love.graphics.setColor(self.border.color)
+		love.graphics.setLineWidth(self.border.width)
+		love.graphics.rectangle("line", self.x, self.y, self.width, self.height, self.radius)
+	end
 
---[[
-function Button:pressed()
-	if self.gotPressed then
-		return false
-	else
-		return self.isPressed
+	if self.text then
+		local font = love.graphics.getFont()
+		local xOffset = (self.width - font:getWidth(self.text.value)) / 2
+		local yOffset = (self.height - font:getHeight()) / 2
+		love.graphics.setColor(self.text.color)
+		love.graphics.print(self.text.value, math.floor(self.x + xOffset), math.floor(self.y + yOffset))
 	end
 end
---]]
 
 return Button

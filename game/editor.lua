@@ -13,6 +13,7 @@ local tiles = {
     {name="door", color={192,52,43}},
     {name="start", color={245,171,53}},
     {name="end", color={38,194,129}},
+    {name="object", color={155,89,182}},
 }
 
 local helpToggle = "h - toggle help"
@@ -77,8 +78,7 @@ function Editor:createToolbar()
                 tile=function(t) return tiles[t.index] end,
                 selected=function(t) return t.index == self.selectedTileIndex end,
                 color=function(t) 
-                    local color = {0,0,0,t.selected and 255 or 100}
-                    color[1], color[2], color[3] = t.tile.color[1], t.tile.color[2], t.tile.color[3]
+                    local color = {t.tile.color[1], t.tile.color[2], t.tile.color[3],t.selected and 255 or 100}
                     return color
                 end,
                 border={
@@ -87,18 +87,18 @@ function Editor:createToolbar()
                 },
                 text={
                     color=function(t)
-                      return t.selected and ui.lightness(t.tile.color) > 0.7 and {50,50,50} or {255,255,255}
+                      return t.selected and ui.util.lightness(t.tile.color) > 0.7 and {50,50,50} or {255,255,255}
                     end,
                     value=function(t) return t.tile.name end
                 },
-                onPressed=function(t) return function() self.selectedTileIndex = t.index end end
+                onPressed=function(t) return function() print("asd"); self.selectedTileIndex = t.index end end
             }
         }
     }
 end
 
 function Editor:update(dt)
-    self.toolbar()
+    self.toolbar:update()
 end
 
 function Editor:draw(x, y, w, h)
@@ -114,7 +114,7 @@ function Editor:drawUi()
     end
     self:drawHelp()
 
-    ui.draw(self.toolbar)
+    self.toolbar:draw()
 
     if self.visibility.minimap then
         local screenWidth, screenHeight = love.graphics.getDimensions()
@@ -415,12 +415,8 @@ function Editor:save(filename)
 end
 
 function Editor:mousePressed(x, y, button)
-    print("pressed", x, y, button)
-
-
-    if ui.mouse:pressed(x, y, button) then
-        print("ui pressed")
-        return
+    if self.toolbar:mousePressed(x, y, button) then
+        return true
     end
 
 
@@ -436,7 +432,10 @@ function Editor:mousePressed(x, y, button)
 end
 
 function Editor:mouseReleased(x, y, button)
-    print("released", x, y, button)
+    if self.toolbar:mouseReleased(x, y, button) then
+        return true
+    end
+
     if button == 1 then
         self.mouseLeftPressed = false
     elseif button == 2 then
@@ -453,6 +452,10 @@ function Editor:wheelMoved(x, y)
 end
 
 function Editor:mouseMoved(x, y, dx, dy, istouch)
+    if self.toolbar:mouseMoved(x, y, dx, dy, istouch) then
+        return true
+    end
+
     if self.mouseLeftPressed then
         local worldX, worldY = self.camera:toWorld(x, y)
         local tileX, tileY = self:toMapCoordinates(worldX, worldY)
@@ -465,7 +468,6 @@ end
 
 function Editor:keyPressed(key, scancode)
     local num = tonumber(scancode)
-    print("pressed ", key, scancode, num)
 
     if self.visibility.prompt then
         if scancode == "backspace" then
@@ -503,7 +505,6 @@ function Editor:keyPressed(key, scancode)
 end
 
 function Editor:keyReleased(key, scancode)
-    print("released", key, scancode)
 end
 
 return Editor

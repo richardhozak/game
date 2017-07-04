@@ -183,7 +183,7 @@ function Game:mouseMoved(x, y, dx, dy, istouch)
 end
 
 function Game:textInput(text)
-
+    io.write(text)
 end
 
 function Game:wheelMoved(x, y)
