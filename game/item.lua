@@ -22,7 +22,7 @@ function Item:containsPoint(x, y)
 end
 
 function Item:mousePressed(x, y, button, istouch)
-    if self:containsPoint(x, y) then
+    if self:containsPoint(x, y) and button == 1 then
         for i=#self, 1, -1 do
             local item = self[i]
             if item:mousePressed(x, y, button, istouch) then
