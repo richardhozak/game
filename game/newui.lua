@@ -1,5 +1,27 @@
 local Item = require("item")
 
+local function clearArray(t)
+	for index, value in ipairs(t) do
+		t[index] = nil
+	end
+end
+
+-- deep-copy a table
+local function clone(t)
+    if type(t) ~= "table" then return t end
+    local meta = getmetatable(t)
+    local target = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            target[k] = clone(v)
+        else
+            target[k] = v
+        end
+    end
+    setmetatable(target, meta)
+    return target
+end
+
 local function pointInRect(px, py, rx, ry, rw, rh)
 	return px >= rx and px <= rx + rw and py >= ry and py <= ry + rh
 end
@@ -70,10 +92,6 @@ function View:new()
 end
 
 function View:update()
-	for index, child in ipairs(self) do
-		child:layout()
-	end
-
 	updateChildren(self)
 end
 
@@ -90,11 +108,18 @@ function Button:new()
 	self.radius = self.radius or 0
 	self.width = self.width or 100
 	self.height = self.height or 50
-	self.color = self.color or {255,255,255}
+	self.color = self.color or function(self) 
+		                           return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
+		                       end
 
 	if self.border then
 		self.border.width = self.border.width or 0
 		self.border.color = self.border.color or {0,0,0,0}
+	else
+		self.border = {
+            width=1,
+            color={123,123,123}
+        }
 	end
 
 	self.pressed = false
@@ -158,54 +183,28 @@ end
 
 function Column:update()
 	evaluateBindings(self.bindings, self)
+	self.width, self.height = self:layout()
 	updateChildren(self)
 end
 
-function Column:draw()
-	for index, child in ipairs(self) do
-		child:draw()
-	end
-end
-
 function Column:layout()
-	local function doLayout(t, spacing, root)
-		root = root or t
-		local width, height = 0, 0
+	local lwidth, lheight = 0, 0
 
-		for index, child in ipairs(t) do
-			local childWidth, childHeight = 0, 0
-
-			if child.name then
-				child.x = root.x
-				child.y = root.y + height
-				childWidth, childHeight = child.width, child.height
-			else
-				childWidth, childHeight = doLayout(child, spacing, root)
-			end
-
-			local islast = index == #t
-			local childSpacing = spacing
-
-			if islast then
-				if childWidth == 0 then
-					childSpacing = -spacing
-				else
-					childSpacing = 0
-				end
-			elseif childWidth == 0 then
-				childSpacing = 0
-			end
-
-			height = height + childHeight + childSpacing
-			if childWidth > width then
-				width = childWidth
-			end
+	for index, child in ipairs(self) do
+		child.x = self.x
+		child.y = self.y + lheight
+		
+		if not child.name then
+			child.width, child.height = self.layout(child)
 		end
 
-		return width, height
+		lheight = lheight + child.height
+		if child.width > lwidth then
+			lwidth = child.width
+		end
 	end
 
-	self.width, self.height = doLayout(self, self.spacing)
+	return lwidth, lheight
 end
 
 local Row = Item:extend("row")
@@ -220,52 +219,70 @@ end
 
 function Row:update()
 	evaluateBindings(self.bindings, self)
+	self.width, self.height = self:layout()
 	updateChildren(self)
 end
 
 function Row:layout()
-	local function doLayout(t, spacing, root)
-		root = root or t
-		local width, height = 0, 0
+	local lwidth, lheight = 0, 0
+
+	for index, child in ipairs(self) do
+		child.x = self.x + lwidth
+		child.y = self.y
 		
-		for index, child in ipairs(t) do
-			local childWidth, childHeight = 0, 0
+		if not child.name then
+			child.width, child.height  = self.layout(child)
+		end
 
-			if child.name then
-				child.x = root.x + width
-				child.y = root.y
-				childWidth, childHeight = child.width, child.height
-			else
-				childWidth, childHeight = doLayout(child, spacing, root)
+		lwidth = lwidth + child.width
+		if child.height > lheight then
+			lheight = child.height
+		end
+	end
+
+	return lwidth, lheight
+end
+
+local Repeater = Item:extend()
+function Repeater:new()
+	self.x = x or 0
+	self.y = y or 0
+	self.width = width or 0
+	self.height = height or 0
+	self.times = self.times or 0
+	self.lastTimes = self.lastTimes or 0
+	self.bindings = createBindings(self)
+	self.delegate = self[1]
+	clearArray(self)
+end
+
+function Repeater:update()
+	evaluateBindings(self.bindings, self)
+
+	if self.times < 0 then
+		self.times = 0
+	end
+
+	if self.times ~= self.lastTimes then
+		if self.times > self.lastTimes then
+			local appendTimes = self.times - self.lastTimes
+			for i=1, appendTimes do
+				local item = clone(self.delegate)
+				local index = #self+1
+				item.index = index
+				self[index] = item
 			end
-			
-			local islast = index == #t
-			local childSpacing = spacing
-
-			if islast then
-				if childWidth == 0 then
-					childSpacing = -spacing
-				else
-					childSpacing = 0
-				end
-			elseif childWidth == 0 then
-				childSpacing = 0
-			end
-
-			width = width + childWidth + childSpacing
-			if childHeight > height then
-				height = childHeight
+		elseif self.times < self.lastTimes then
+			local removeTimes = self.lastTimes - self.times
+			for i=1, removeTimes do
+				self[#self] = nil
 			end
 		end
 
-		return width, height
+		self.lastTimes = self.times
 	end
 
-	self.width, self.height = doLayout(self, self.spacing)
-end
-
-local Repeater = Item:extend("repeater")
-function Repeater:new()
+	updateChildren(self)
 end
 
 local function components()
@@ -286,5 +303,7 @@ local function components()
 end
 
 local allcomponents = components()
+
+allcomponents["repeater"] = Repeater
 
 return allcomponents
