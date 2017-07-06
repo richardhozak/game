@@ -1,15 +1,26 @@
 local Item = {}
 Item.__index = Item
+Item.hotitem = nil
 
 function Item:new()
+    self.x = self.x or 0
+    self.y = self.y or 0
+    if self.visible == nil then
+        self.visible = true
+    end
+    if self.enabled == nil then
+        self.enabled = true
+    end
 end
 
 local function updateChildren(t, root)
     root = root or t
     for index, child in ipairs(t) do
         if child.name then
-            child.parent = root
-            child:update()
+            if child.visible then
+                child.parent = root
+                child:update()
+            end
         else
             if type(child.update) == "function" then
                 child:update()
@@ -21,6 +32,7 @@ local function updateChildren(t, root)
 end
 
 function Item:createBindings()
+    print("creating bindings")
     local bindings = nil
     
     for key, value in pairs(self) do
@@ -28,7 +40,7 @@ function Item:createBindings()
             if not bindings then bindings = {} end
             bindings[key] = value
         elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
-            local subbindings = self.createBindings(value)
+            local subbindings = Item.createBindings(value)
             if subbindings then
                 if not bindings then bindings = {} end
                 bindings[key] = subbindings
@@ -58,13 +70,17 @@ end
 
 function Item:layout()
     for index, child in ipairs(self) do
-        child:layout()
+        if child.visible then
+            child:layout()
+        end
     end
 end
 
 function Item:draw()
     for index, child in ipairs(self) do
-        child:draw()
+        if child.visible then
+            child:draw()
+        end
     end
 end
 
@@ -74,17 +90,14 @@ function Item:containsPoint(x, y)
 end
 
 function Item:mousePressed(x, y, button, istouch)
-    if self:containsPoint(x, y) and button == 1 then
+    if self:containsPoint(x, y) and self.visible then
         for i=#self, 1, -1 do
             local item = self[i]
-            if item:mousePressed(x, y, button, istouch) then
-                return true
+            if item:containsPoint(x, y, button, istouch) and item.visible then
+                if item:mousePressed(x, y, button, istouch) then
+                    return true
+                end
             end
-        end
-
-        if self.name == "button" then
-            self.down = true
-            return true
         end
     end
 
@@ -92,23 +105,18 @@ function Item:mousePressed(x, y, button, istouch)
 end
 
 function Item:mouseReleased(x, y, button, istouch)
-    if self.down then
-        self.down = false
-        return true
-    else
-        for i=#self, 1, -1 do
-            local item = self[i]
-            if item:mouseReleased(x, y, button, istouch) then
-                return true
-            end
+    for i=#self, 1, -1 do
+        local item = self[i]
+        if item:mouseReleased(x, y, button, istouch) then
+            return true
         end
-
-        return false
     end
+
+    return false
 end
 
 function Item:mouseMoved(x, y, dx, dy, istouch)
-    if love.mouse.isDown(1) or love.mouse.isDown(2) then
+    if not self.visible then
         return false
     end
 
@@ -121,7 +129,7 @@ function Item:mouseMoved(x, y, dx, dy, istouch)
         end
     end
 
-    if self.name == "button" then
+    if self.name == "button" or self.name == "input" then
         self.mouseover = self:containsPoint(x, y)
     end
 
@@ -130,6 +138,32 @@ function Item:mouseMoved(x, y, dx, dy, istouch)
     end
 
     return mouseover
+end
+
+function Item:textInput(text)
+    if not self.enabled or not self.visible then
+        return false
+    end
+
+    for i=#self, 1, -1 do
+        local item = self[i]
+        if item:textInput(text) then
+            return true
+        end
+    end
+end
+
+function Item:keyPressed(key, scancode, isrepeat)
+    if not self.enabled or not self.visible then
+        return false
+    end
+
+    for i=#self, 1, -1 do
+        local item = self[i]
+        if item:keyPressed(key, scancode, isrepeat) then
+            return true
+        end
+    end
 end
 
 function Item:extend(name)

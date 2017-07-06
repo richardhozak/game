@@ -5,8 +5,7 @@ local Item = requireitem("item")
 
 local View = Item:extend("view")
 function View:new()
-	self.x = self.x or 0
-	self.y = self.y or 0
+	self.super.new(self)
 	self.width = self.width or love.graphics.getWidth()
 	self.height = self.height or love.graphics.getHeight()
 end

@@ -6,8 +6,7 @@ local util = requireitem("util")
 
 local Row = Item:extend("row")
 function Row:new()
-	self.x = self.x or 0
-	self.y = self.y or 0
+	self.super.new(self)
 	self.width = self.width or 0
 	self.height = self.height or 0
 	self.spacing = self.spacing or 10

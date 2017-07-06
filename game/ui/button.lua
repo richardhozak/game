@@ -6,11 +6,10 @@ local Item = requireitem("item")
 
 local Button = Item:extend("button")
 function Button:new()
-	self.x = self.x or 0
-	self.y = self.y or 0
-	self.radius = self.radius or 0
+	self.super.new(self)
 	self.width = self.width or 100
 	self.height = self.height or 50
+	self.radius = self.radius or 0
 	self.color = self.color or function(self) 
 		                           return self.pressed and {255,255,255,100} or self.mouseover and {20,20,20} or {255,255,255}
 		                       end
@@ -32,8 +31,35 @@ function Button:new()
 	self.bindings = self:createBindings()
 end
 
+function Button:mousePressed(x, y, button, istouch)
+	if not self.enabled then return false end
+	
+	if self.super.mousePressed(self, x, y, button, istouch) then
+		return true
+	end
+
+	Item.hotitem = self
+	self.down = true
+    return true
+end
+
+function Button:mouseReleased(x, y, button, istouch)
+	if not self.enabled then return false end
+	
+	if self.down then
+		self.down = false
+		return true
+	end
+
+	return self.super.mousePressed(self, x, y, button, istouch)
+end
+
 function Button:update()
 	self:evaluateBindings(self.bindings)
+
+	if not self.enabled then
+		return
+	end
 
 	if self.down then
 		if self.mouseover then

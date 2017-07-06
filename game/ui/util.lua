@@ -1,3 +1,4 @@
+local utf8 = require("utf8")
 local util = {}
 
 function util.calculateSpacing(spacing, itemsize, index, count)
@@ -42,14 +43,13 @@ function util.clone(t)
     return target
 end
 
-function util.emit(func)
+function util.emit(func, ...)
 	if type(func) == "function" then
-		func()
+		func(...)
 	end
 end
 
 function util.lightness(color)
-  --return (0.299*color[1] + 0.587*color[2] + 0.114*color[3]) / 255
   local r, g, b = color[1], color[2], color[3]
   return ((r+r+b+g+g+g)/6)/255
 end
@@ -59,57 +59,49 @@ function util.brightness(color)
 	return math.sqrt(r*r*0.241 + g*g*0.691 + b*b*0.068)
 end
 
-local function components()
-	local variables = {}
-	local id = 1
-	while true do 
-		local index, value = debug.getlocal(2, id)
-		if index then
-			if type(value) == "table" and value.name then
-				print("local table", value.name, value, index)
-				variables[value.name] = value
-			end
-		else
-			break
-		end
-		id = id + 1
+util.text = {}
+
+function util.text.removeAt(text, position)
+	local byteoffset = utf8.offset(text, position)
+	local left = nil
+	local right = nil
+
+    if byteoffset then
+    	left = string.sub(text, 1, byteoffset - 1)
+    	right = string.sub(text, byteoffset)
+    end
+
+    byteoffset = utf8.offset(right, 2)
+
+    if byteoffset then
+        right = string.sub(right, byteoffset)
+   	end
+
+   	return left .. right
+end
+
+function util.text.insertAt(text, insert, position)
+	local maxlen = utf8.len(text)
+	local insertAtEnd = position == maxlen
+
+	if insertAtEnd then
+		return text .. insert
+	else
+		local byteoffset = utf8.offset(text, position+1)
+		local left = nil
+		local right = nil
+ 
+	    if byteoffset then
+	    	left = string.sub(text, 1, byteoffset - 1)
+	    	right = string.sub(text, byteoffset)
+	    end
+
+	    return table.concat{left, insert, right}
 	end
-	return variables
+end
+
+function util.clamp(x, min, max)
+	return x < min and min or (x > max and max or x)
 end
 
 return util
-
--- creates bindings table from functions that are present in 'context' table (recursively)
--- local function createBindings(context)
--- 	local bindings = nil
--- 	for key, value in pairs(context) do
--- 		if type(value) == "function" then
--- 			if not bindings then bindings = {} end
--- 			bindings[key] = value
--- 		elseif type(value) == "table" and value ~= bindings and type(key) ~= "number" then
--- 			local subbindings = createBindings(value)
--- 			if subbindings then
--- 				if not bindings then bindings = {} end
--- 				bindings[key] = subbindings
--- 			end
--- 		end
--- 	end
-
--- 	return bindings
--- end
-
--- local function evaluateBindings(bindings, context, arg)
--- 	if not bindings then return end
--- 	if not arg then
--- 		arg = context
--- 	end
-
--- 	for key, value in pairs(bindings) do
--- 		if type(value) == "function" then
--- 			context[key] = value(arg)
--- 		elseif type(value) == "table" then
--- 			--print("evaluating", key, value, inspect(value), inspect(context[key]))
--- 			evaluateBindings(value, context[key], arg)
--- 		end
--- 	end
--- end

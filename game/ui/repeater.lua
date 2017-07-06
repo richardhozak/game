@@ -6,8 +6,7 @@ local util = requireitem("util")
 
 local Repeater = Item:extend()
 function Repeater:new()
-	self.x = x or 0
-	self.y = y or 0
+	self.super.new(self)
 	self.width = width or 0
 	self.height = height or 0
 	self.times = self.times or 0
