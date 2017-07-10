@@ -47,7 +47,7 @@ end
 function Editor:reset()
     self.tileSize = 32
     self.selectedTileIndex = 1
-    self.font = love.graphics.newFont(12)
+    self.font = love.graphics.newFont("fonts/OpenSans-Light.ttf", 13)
     self.visibility = {}
     self.visibility.prompt = false
     self.visibility.minimap = true
@@ -89,7 +89,7 @@ function Editor:createToolbar()
                 },
                 text={
                     color=function(t)
-                      return t.selected and ui.util.lightness(t.tile.color) > 0.7 and {50,50,50} or {255,255,255}
+                      return t.selected and ui.util.lightness(t.tile.color) > 0.5 and {50,50,50} or {255,255,255}
                     end,
                     value=function(t) return t.tile.name end
                 },
@@ -111,6 +111,8 @@ end
 
 function Editor:drawUi()
     --self:drawToolbar(0,0)
+    local lastFont = love.graphics.getFont()
+    love.graphics.setFont(self.font)
     if self.visibility.debug then
         self:drawDebugInfo()
     end
@@ -124,6 +126,7 @@ function Editor:drawUi()
         local x, y = screenWidth - width, screenHeight - height
         self:drawMinimap(x, y, width, height, 10)
     end
+    love.graphics.setFont(lastFont)
 end
 
 function Editor:drawToolbar(x, y)
@@ -233,7 +236,7 @@ function Editor:drawHelp()
     love.graphics.setColor(255,255,255)
     love.graphics.print(helpToggle, width - self.font:getWidth(helpToggle), 0)
     if self.visibility.help then
-        love.graphics.printf(help, width - 200, self.font:getHeight(),200,"right")
+        love.graphics.printf(help, 0, self.font:getHeight(), width, "right")
     end
 end
 
