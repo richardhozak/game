@@ -371,53 +371,53 @@ function Editor:toMapCoordinates(worldX, worldY)
     return math.floor(worldX / self.tileSize), math.floor(worldY / self.tileSize)
 end
 
-function Editor:load(filename)
-    local level = bitser.loadLoveFile("maps/" .. filename)
-    return level
-end
+-- function Editor:load(filename)
+--     local level = bitser.loadLoveFile("maps/" .. filename)
+--     return level
+-- end
 
-function Editor:save(filename)
-    local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
-    if file then
-        print("saving file")
-        local items, len = self.world:getItems()
+-- function Editor:save(filename)
+--     local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
+--     if file then
+--         print("saving file")
+--         local items, len = self.world:getItems()
 
-        local mapX, mapY = self:getSmallestPosition(items)
-        local maxMapX, maxMapY = self:getLargestPosition(items)
-        local mapWidth = maxMapX - mapX
-        local mapHeight = maxMapY - mapY
+--         local mapX, mapY = self:getSmallestPosition(items)
+--         local maxMapX, maxMapY = self:getLargestPosition(items)
+--         local mapWidth = maxMapX - mapX
+--         local mapHeight = maxMapY - mapY
 
-        mapX = mapX / self.tileSize
-        mapY = mapY / self.tileSize
-        mapWidth = mapWidth / self.tileSize + 1
-        mapHeight = mapHeight / self.tileSize + 1
+--         mapX = mapX / self.tileSize
+--         mapY = mapY / self.tileSize
+--         mapWidth = mapWidth / self.tileSize + 1
+--         mapHeight = mapHeight / self.tileSize + 1
 
-        local mappedItems = {}
+--         local mappedItems = {}
 
-        for i=1, len do
-            local item = items[i]
-            table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
-        end
+--         for i=1, len do
+--             local item = items[i]
+--             table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
+--         end
 
-        print("w", mapWidth)
-        print("h", mapHeight)
+--         print("w", mapWidth)
+--         print("h", mapHeight)
 
-        local map = {}
-        map.version = 1
-        map.items = mappedItems
-        map.x = mapX
-        map.y = mapY
-        map.width = mapWidth
-        map.height = mapHeight
-        self.map = map
+--         local map = {}
+--         map.version = 1
+--         map.items = mappedItems
+--         map.x = mapX
+--         map.y = mapY
+--         map.width = mapWidth
+--         map.height = mapHeight
+--         self.map = map
 
-        local encoded = luatable.encode_pretty(map)
-        file:write(encoded)
-        file:close()
-    else
-        error(errorstr)
-    end
-end
+--         local encoded = luatable.encode_pretty(map)
+--         file:write(encoded)
+--         file:close()
+--     else
+--         error(errorstr)
+--     end
+-- end
 
 function Editor:mousePressed(x, y, button)
     if self.toolbar:mousePressed(x, y, button) then

@@ -23,7 +23,7 @@ function Game:new()
     self.level = nil
 
 
-    self:editLevel("bitmap")
+    --self:loadLevel("savegame")
     --self:loadLevel("bitmap")
 end
 
@@ -125,10 +125,12 @@ function Game:loadLevel(name)
     self.editing = false
 end
 
-function Game:saveLevel(level)
-    if not level or not self.editing then
+function Game:saveLevel(name)
+    if not name then
         return
     end
+
+    bitser.dumpLoveFile("maps/" .. name, self.map)
 end
 
 function Game:loadGame(level)
@@ -152,6 +154,13 @@ function Game:keyPressed(key, scancode, isrepeat)
     if key == "escape" then
         love.event.quit()
     end
+
+    if key == "s" and love.keyboard.isDown("lctrl") then
+        print("saving game")
+        self:saveLevel("savegame")
+        return
+    end
+
 
     if self.editor then
         self.editor:keyPressed(key, scancode, isrepeate)
