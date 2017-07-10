@@ -7,13 +7,15 @@ local Object = require("lib.classic")
 local Editor = Object:extend()
 
 local tiles = {
-    {name="blank", color={228,241,254}},
-    {name="wall", color={103,128,159}},
-    {name="glass", color={25,181,254}},
-    {name="door", color={192,52,43}},
-    {name="start", color={245,171,53}},
-    {name="end", color={38,194,129}},
-    {name="object", color={155,89,182}},
+    {name="blank", color={228,241,254}}, --1
+    {name="wall", color={103,128,159}},  --2
+    {name="glass", color={25,181,254}},  --3
+    {name="door", color={192,52,43}},    --4
+    {name="start", color={245,171,53}},  --5
+    {name="end", color={38,194,129}},    --6
+    {name="object", color={155,89,182}}, --7
+    {name="enemy", color={207,0,15}},    --8
+    {name="path", color={241,169,160}},  --9
 }
 
 local helpToggle = "h - toggle help"
@@ -45,7 +47,7 @@ end
 function Editor:reset()
     self.tileSize = 32
     self.selectedTileIndex = 1
-    self.font = love.graphics.newFont(12)
+    self.font = love.graphics.newFont("fonts/OpenSans-Light.ttf", 13)
     self.visibility = {}
     self.visibility.prompt = false
     self.visibility.minimap = true
@@ -87,7 +89,7 @@ function Editor:createToolbar()
                 },
                 text={
                     color=function(t)
-                      return t.selected and ui.util.lightness(t.tile.color) > 0.7 and {50,50,50} or {255,255,255}
+                      return t.selected and ui.util.lightness(t.tile.color) > 0.5 and {50,50,50} or {255,255,255}
                     end,
                     value=function(t) return t.tile.name end
                 },
@@ -109,6 +111,8 @@ end
 
 function Editor:drawUi()
     --self:drawToolbar(0,0)
+    local lastFont = love.graphics.getFont()
+    love.graphics.setFont(self.font)
     if self.visibility.debug then
         self:drawDebugInfo()
     end
@@ -122,6 +126,7 @@ function Editor:drawUi()
         local x, y = screenWidth - width, screenHeight - height
         self:drawMinimap(x, y, width, height, 10)
     end
+    love.graphics.setFont(lastFont)
 end
 
 function Editor:drawToolbar(x, y)
@@ -231,7 +236,7 @@ function Editor:drawHelp()
     love.graphics.setColor(255,255,255)
     love.graphics.print(helpToggle, width - self.font:getWidth(helpToggle), 0)
     if self.visibility.help then
-        love.graphics.printf(help, width - 200, self.font:getHeight(),200,"right")
+        love.graphics.printf(help, 0, self.font:getHeight(), width, "right")
     end
 end
 
@@ -366,53 +371,53 @@ function Editor:toMapCoordinates(worldX, worldY)
     return math.floor(worldX / self.tileSize), math.floor(worldY / self.tileSize)
 end
 
-function Editor:load(filename)
-    local level = bitser.loadLoveFile("maps/" .. filename)
-    return level
-end
+-- function Editor:load(filename)
+--     local level = bitser.loadLoveFile("maps/" .. filename)
+--     return level
+-- end
 
-function Editor:save(filename)
-    local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
-    if file then
-        print("saving file")
-        local items, len = self.world:getItems()
+-- function Editor:save(filename)
+--     local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
+--     if file then
+--         print("saving file")
+--         local items, len = self.world:getItems()
 
-        local mapX, mapY = self:getSmallestPosition(items)
-        local maxMapX, maxMapY = self:getLargestPosition(items)
-        local mapWidth = maxMapX - mapX
-        local mapHeight = maxMapY - mapY
+--         local mapX, mapY = self:getSmallestPosition(items)
+--         local maxMapX, maxMapY = self:getLargestPosition(items)
+--         local mapWidth = maxMapX - mapX
+--         local mapHeight = maxMapY - mapY
 
-        mapX = mapX / self.tileSize
-        mapY = mapY / self.tileSize
-        mapWidth = mapWidth / self.tileSize + 1
-        mapHeight = mapHeight / self.tileSize + 1
+--         mapX = mapX / self.tileSize
+--         mapY = mapY / self.tileSize
+--         mapWidth = mapWidth / self.tileSize + 1
+--         mapHeight = mapHeight / self.tileSize + 1
 
-        local mappedItems = {}
+--         local mappedItems = {}
 
-        for i=1, len do
-            local item = items[i]
-            table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
-        end
+--         for i=1, len do
+--             local item = items[i]
+--             table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
+--         end
 
-        print("w", mapWidth)
-        print("h", mapHeight)
+--         print("w", mapWidth)
+--         print("h", mapHeight)
 
-        local map = {}
-        map.version = 1
-        map.items = mappedItems
-        map.x = mapX
-        map.y = mapY
-        map.width = mapWidth
-        map.height = mapHeight
-        self.map = map
+--         local map = {}
+--         map.version = 1
+--         map.items = mappedItems
+--         map.x = mapX
+--         map.y = mapY
+--         map.width = mapWidth
+--         map.height = mapHeight
+--         self.map = map
 
-        local encoded = luatable.encode_pretty(map)
-        file:write(encoded)
-        file:close()
-    else
-        error(errorstr)
-    end
-end
+--         local encoded = luatable.encode_pretty(map)
+--         file:write(encoded)
+--         file:close()
+--     else
+--         error(errorstr)
+--     end
+-- end
 
 function Editor:mousePressed(x, y, button)
     if self.toolbar:mousePressed(x, y, button) then

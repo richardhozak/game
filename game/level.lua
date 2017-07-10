@@ -2,6 +2,7 @@ local Object = require("lib.classic")
 local bump = require("lib.bump")
 local Player = require("entities.player")
 local Block = require("entities.block")
+local Enemy = require("entities.enemy")
 
 local Level = Object:extend()
 
@@ -22,10 +23,15 @@ function Level:reset()
 
     for x, row in pairs(self.map.items) do
         for y, tile in pairs(row) do
+            local finalX = x*self.tileSize
+            local finalY = y*self.tileSize
+
             if tile == 5 and not self.player then
-                self.player = Player(self, self.world, self.camera, x*self.tileSize, y*self.tileSize, 32, 32)
-            elseif tile ~= 4 then
-                Block(self.world, x*self.tileSize, y*self.tileSize, self.tileSize, self.tileSize)
+                self.player = Player(self, self.world, self.camera, finalX, finalY, 32, 32)
+            elseif tile == 8 then
+                Enemy(self.world, x, y, finalX, finalY, self.tileSize, self.tileSize, self.map, self.tileSize)
+            elseif tile ~= 4 and tile ~= 9 then
+                Block(self.world, finalX, finalY, self.tileSize, self.tileSize)
             end
         end
     end
