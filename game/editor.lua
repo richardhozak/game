@@ -7,13 +7,15 @@ local Object = require("lib.classic")
 local Editor = Object:extend()
 
 local tiles = {
-    {name="blank", color={228,241,254}},
-    {name="wall", color={103,128,159}},
-    {name="glass", color={25,181,254}},
-    {name="door", color={192,52,43}},
-    {name="start", color={245,171,53}},
-    {name="end", color={38,194,129}},
-    {name="object", color={155,89,182}},
+    {name="blank", color={228,241,254}}, --1
+    {name="wall", color={103,128,159}},  --2
+    {name="glass", color={25,181,254}},  --3
+    {name="door", color={192,52,43}},    --4
+    {name="start", color={245,171,53}},  --5
+    {name="end", color={38,194,129}},    --6
+    {name="object", color={155,89,182}}, --7
+    {name="enemy", color={207,0,15}},    --8
+    {name="path", color={241,169,160}},  --9
 }
 
 local helpToggle = "h - toggle help"
