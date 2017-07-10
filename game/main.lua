@@ -14,7 +14,7 @@ local displayText = ""
 
 function love.load()
     io.stdout:setvbuf("no")
-    love.graphics.setFont(love.graphics.newFont("fonts/OpenSans-Light.ttf", 18))
+    love.graphics.setFont(love.graphics.newFont("fonts/OpenSans-Light.ttf", 13))
 
     love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
     game = Game()
