@@ -153,6 +153,21 @@ function Item:textInput(text)
     end
 end
 
+function Item:keyReleased(key, scancode)
+    if not self.enabled or not self.visible then
+        return false
+    end
+
+    for i=#self, 1, -1 do
+        local item = self[i]
+        if item:keyReleased(key, scancode) then
+            return true
+        end
+    end
+
+    return false
+end
+
 function Item:keyPressed(key, scancode, isrepeat)
     if not self.enabled or not self.visible then
         return false
@@ -164,6 +179,8 @@ function Item:keyPressed(key, scancode, isrepeat)
             return true
         end
     end
+
+    return false
 end
 
 function Item:extend(name)
