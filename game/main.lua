@@ -1,4 +1,8 @@
 inspect = require("lib.inspect")
+local opts = {process=function(item, path) 
+        if path[#path] ~= inspect.METATABLE and path[#path] ~= "parent" then return item end
+    end}
+pprint = function(t) print(inspect(t, opts)) end
 
 local Game = require("game")
 local ui = require("ui")
