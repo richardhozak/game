@@ -6,15 +6,16 @@ local Enemy = require("entities.enemy")
 
 local Level = Object:extend()
 
-function Level:new(map, camera)
-    self.map = map
+function Level:new(camera)
     self.camera = camera
     self.paused = false
-    self:reset()
 end
 
 function Level:reset()
-    print("resetting map")
+    if not self.map then
+        print("level map not set")
+    end
+
     self.tileSize = 50
     self.x, self.y = self.map.x*self.tileSize, self.map.y*self.tileSize
     self.width, self.height = self.map.width*self.tileSize, self.map.height*self.tileSize
@@ -156,25 +157,35 @@ function Level:updateUi()
     end
 end
 
-function Level:keypressed(key, scancode, isrepeat)
+function Level:load()
+end
+
+function Level:save()
+end
+
+function Level:keyPressed(key, scancode, isrepeat)
     if key == "escape" then
         self.paused = not self.paused
         return
     end
 
+    print("keypressed")
     self.player:keypressed(key, scancode, isrepeat)
 end
 
-function Level:keyreleased(key, scancode)
+function Level:keyReleased(key, scancode)
     self.player:keyreleased(key, scancode)
 end
 
-function Level:mousepressed(x, y, button, istouch)
+function Level:mousePressed(x, y, button, istouch)
     self.player:mousepressed(button)
 end
 
-function Level:mousereleased(x, y, button, istouch)
+function Level:mouseReleased(x, y, button, istouch)
     self.player:mousereleased(button)
+end
+
+function Level:mouseMoved(x, y, dx, dy, istouch)
 end
 
 return Level

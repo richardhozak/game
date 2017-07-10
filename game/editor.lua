@@ -36,15 +36,19 @@ camerax: %d, cameray: %d
 tilex: %d, tiley: %d
 mousex: %d, mousey: %d
 mousetx: %d, mousety: %d
+mapx: %d, mapy: %d
+mapw: %d, maph: %d
 ]]
 
-function Editor:new(map, camera)
-    self.map = map
+function Editor:new(camera)
     self.camera = camera
-    self:reset()
 end
 
 function Editor:reset()
+    if not map then
+        print("editor map not set")
+    end
+
     self.tileSize = 32
     self.selectedTileIndex = 1
     self.font = love.graphics.newFont("fonts/OpenSans-Light.ttf", 13)
@@ -54,6 +58,7 @@ function Editor:reset()
     self.visibility.debug = false
     self.visibility.help = false
     self.camera:setBounds()
+    self.camera:setPosition(self.map.x * self.tileSize, self.map.y * self.tileSize)
     self.mouseLeftPressed = false
     self.mouseRightPressed = false
     self.toolbar = self:createToolbar()
@@ -93,7 +98,7 @@ function Editor:createToolbar()
                     end,
                     value=function(t) return t.tile.name end
                 },
-                onPressed=function(t) return function() print("asd"); self.selectedTileIndex = t.index end end
+                onPressed=function(t) return function() self.selectedTileIndex = t.index end end
             }
         }
     }
@@ -308,7 +313,8 @@ function Editor:drawDebugInfo()
         self.camera.x, self.camera.y, 
         math.floor(self.camera.x/self.tileSize), math.floor(self.camera.y/self.tileSize),
         self.camera:getMouseX(), self.camera:getMouseY(),
-        math.floor(self.camera:getMouseX() / self.tileSize), math.floor(self.camera:getMouseY() / self.tileSize))
+        math.floor(self.camera:getMouseX() / self.tileSize), math.floor(self.camera:getMouseY() / self.tileSize),
+        self.map.x, self.map.y, self.map.width, self.map.height)
 
     local width, wrappedtext = self.font:getWrap(text, 200)
     local lineHeight = self.font:getLineHeight()
@@ -322,21 +328,27 @@ function Editor:drawDebugInfo()
     end
 
     --love.graphics.printf(text, 0, y, width)
-
-    
 end
 
 function Editor:getSelectedPosition(items, comparer)
-    local selectedX, selectedY = 0, 0
+    local selectedX, selectedY = nil, nil
 
-    for x, row in pairs(self.map.items) do
-        if comparer(selectedX, x) then
+    for x, row in pairs(items) do
+        if not selectedX then
             selectedX = x
+        else
+            if comparer(selectedX, x) then
+                selectedX = x
+            end
         end
 
         for y, index in pairs(row) do
-            if comparer(selectedY, y) then
+            if not selectedY then
                 selectedY = y
+            else
+                if comparer(selectedY, y) then
+                    selectedY = y
+                end
             end
         end
     end
@@ -371,53 +383,71 @@ function Editor:toMapCoordinates(worldX, worldY)
     return math.floor(worldX / self.tileSize), math.floor(worldY / self.tileSize)
 end
 
--- function Editor:load(filename)
---     local level = bitser.loadLoveFile("maps/" .. filename)
---     return level
--- end
+function Editor:load(filename)
+    print("loading editor map", filename)
+    self.map = bitser.loadLoveFile("maps/" .. filename)
+    self.loadedMapName = filename
+    self:reset()
+end
 
--- function Editor:save(filename)
---     local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
---     if file then
---         print("saving file")
---         local items, len = self.world:getItems()
+function Editor:save(filename)
+    if not filename then
+        if self.loadedMapName then
+            filename = self.loadedMapName
+        else
+            error("could not save map (map not loaded or filename not passed)")
+        end
+    end
 
---         local mapX, mapY = self:getSmallestPosition(items)
---         local maxMapX, maxMapY = self:getLargestPosition(items)
---         local mapWidth = maxMapX - mapX
---         local mapHeight = maxMapY - mapY
+    local smallestX, smallestY = self:getSmallestPosition(self.map.items)
+    local largestX, largestY = self:getLargestPosition(self.map.items)
+    local mapWidth = largestX - smallestX
+    local mapHeight = largestY - smallestY
+    print(smallestX, smallestY, largestX, largestY, mapWidth, mapHeight)
 
---         mapX = mapX / self.tileSize
---         mapY = mapY / self.tileSize
---         mapWidth = mapWidth / self.tileSize + 1
---         mapHeight = mapHeight / self.tileSize + 1
+    self.map.x = smallestX
+    self.map.y = smallestY
+    self.map.width = mapWidth
+    self.map.height = mapHeight
+    self.map.version = 2
 
---         local mappedItems = {}
+    bitser.dumpLoveFile("maps/" .. filename, self.map)
 
---         for i=1, len do
---             local item = items[i]
---             table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
---         end
+    -- local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
+    -- if file then
+    --     print("saving file")
+        
+    --     -- mapX = mapX / self.tileSize
+    --     -- mapY = mapY / self.tileSize
+    --     -- mapWidth = mapWidth / self.tileSize + 1
+    --     -- mapHeight = mapHeight / self.tileSize + 1
 
---         print("w", mapWidth)
---         print("h", mapHeight)
+    --     -- local mappedItems = {}
 
---         local map = {}
---         map.version = 1
---         map.items = mappedItems
---         map.x = mapX
---         map.y = mapY
---         map.width = mapWidth
---         map.height = mapHeight
---         self.map = map
+    --     -- for i=1, len do
+    --     --     local item = items[i]
+    --     --     table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
+    --     -- end
 
---         local encoded = luatable.encode_pretty(map)
---         file:write(encoded)
---         file:close()
---     else
---         error(errorstr)
---     end
--- end
+    --     -- print("w", mapWidth)
+    --     -- print("h", mapHeight)
+
+    --     -- local map = {}
+    --     -- map.version = 1
+    --     -- map.items = mappedItems
+    --     -- map.x = mapX
+    --     -- map.y = mapY
+    --     -- map.width = mapWidth
+    --     -- map.height = mapHeight
+    --     -- self.map = map
+
+    --     -- local encoded = luatable.encode_pretty(map)
+    --     -- file:write(encoded)
+    --     -- file:close()
+    -- else
+    --     error(errorstr)
+    -- end
+end
 
 function Editor:mousePressed(x, y, button)
     if self.toolbar:mousePressed(x, y, button) then
@@ -490,6 +520,10 @@ function Editor:keyPressed(key, scancode)
 
     if love.keyboard.isDown("lctrl") and key == "s" then
         self:save(self.mapname)
+    end
+
+    if love.keyboard.isDown("lctrl") and key == "n" then
+        self:normalizeMap()
     end
 
     if num and num >= 1 and num <= #tiles then

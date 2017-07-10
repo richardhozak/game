@@ -2,6 +2,7 @@ local Camera = require("camera")
 local Level = require("level")
 local Editor = require("editor")
 local bitser = require("lib.bitser")
+local ui = require("ui")
 
 local Object = require("lib.classic")
 local Game = Object:extend()
@@ -15,16 +16,57 @@ h: %f
 
 function Game:new()
     self.camera = Camera()
-    self.editing = false
     self.tileSize = 32
 
-    self.map = nil
-    self.editor = nil
-    self.level = nil
+    self.editor = Editor(self.camera)
+    self.level = Level(self.camera)
 
+    self.system = nil
 
-    --self:loadLevel("savegame")
-    --self:loadLevel("bitmap")
+    self.ui = self:createUi()
+    self.uiVisible = true
+end
+
+function Game:createUi()
+    return ui.column {
+        x=function(item) return (love.graphics.getWidth() - item.width) / 2 end,
+        y=50,
+        ui.button {
+            text={
+                color={50,50,50},
+                value=function() return self.system == self.editor and "editor" or self.system == self.level and "level" or "none" end,
+            },
+            onPressed=function(item) 
+                return function()
+                    print("setting system")
+                    if not self.system then
+                        self.system = self.editor
+                    elseif self.system == self.level then
+                        self.system = self.editor
+                    else
+                        self.system = self.level
+                    end
+                end
+            end
+        },
+        ui.repeater {
+            levels=function(item) return love.filesystem.getDirectoryItems("maps") end,
+            times=function(item) return item.levels and #item.levels or 0 end,
+            ui.button {
+                text={
+                    value=function(item) return item.parent.levels[item.index] end,
+                    color={50,50,50}
+                },
+                onPressed=function(item)
+                    return function()
+                        print("loading", item.text.value)
+                        self.system:load(item.text.value)
+                        self.uiVisible = false
+                    end
+                end
+            }
+        }
+    }
 end
 
 function Game:getDefaultMap()
@@ -39,38 +81,30 @@ function Game:getDefaultMap()
 end
 
 function Game:update(dt)
-    if self.editing and self.editor then
-        self.editor:update(dt)
-    elseif self.level then 
-        self.level:update(dt) 
+    if self.system and self.system.map then
+        self.system:update(dt)
     end
 
     self.camera:update(dt)
+    if self.uiVisible then
+        self.ui:update()
+    end
 end
 
 function Game:draw()
     self.camera:draw(function(x, y, w, h)
-        if self.editing and self.editor then 
-            self.editor:draw(x, y, w, h)
-        elseif self.level then 
-            self.level:draw()
+        if self.system and self.system.map then
+            self.system:draw(x, y, w, h)
         end
     end)
 
-    if self.editing and self.editor then
-        self.editor:drawUi()
+    if self.system and self.system.map and self.system.drawUi then
+        self.system:drawUi()
     end
 
-    --[[
-    if self.editing and self.map then 
-        local screenWidth, screenHeight = love.graphics.getDimensions()
-        local minimapWidth, minimapHeight = 200, 200
-        local minimapX, minimapY = screenWidth - minimapWidth, screenHeight - minimapHeight
-        self.map:drawMinimap(minimapX, minimapY, minimapWidth, minimapHeight, self.camera, 10) 
+    if self.uiVisible then
+        self.ui:draw()
     end
-    --]]
-
-    --self:drawDebugInfo()
 end
 
 function Game:drawDebugInfo()
@@ -78,126 +112,77 @@ function Game:drawDebugInfo()
     love.graphics.print(string.format(debugInfo, self.camera.x, self.camera.y, self.camera.width, self.camera.height))
 end
 
-function Game:updateLevelAndSave(level)
-    local mapfunction, errormsg = love.filesystem.load("maps/" .. level)
-    if errormsg then
-        error("could not load map", level)
-    else
-        print("loading", level)
-        local map = mapfunction()
-        map = self:updateMapVersion(map)
-        map = luatable.encode_pretty(map)
-        love.filesystem.write("maps/" .. level, map)
-    end
-end
-
-function Game:updateMapVersion(map)
-    if map.version == 1 then
-        local newItems = {}
-        for i=1, #map.items do
-            local item = map.items[i]
-            local x, y, tile = item.x, item.y, item.tile
-            if newItems[x] == nil then
-                newItems[x] = {}
-            end
-
-            newItems[x][y] = tile
-        end
-        map.items = newItems
-        map.version = 2
-        return map
-    elseif map.version == 2 then
-        return map
-    else
-        error("invalid map")
-    end
-end
-
-function Game:editLevel(name)
-    self.map = bitser.loadLoveFile("maps/" .. name)
-    self.editor = Editor(self.map, self.camera)
-    self.editing = true
-end
-
-function Game:loadLevel(name)
-    self.map = bitser.loadLoveFile("maps/" .. name)
-    self.level = Level(self.map, self.camera)
-    self.editing = false
-end
-
-function Game:saveLevel(name)
-    if not name then
-        return
-    end
-
-    bitser.dumpLoveFile("maps/" .. name, self.map)
-end
-
-function Game:loadGame(level)
-    if not level then
-        return
-    end
-    local mapfunction, errormsg = love.filesystem.load("saves/" .. level)
-    if errormsg then
-        error("could not load map", level)
-    else
-        print("loading", level)
-        self.map = mapfunction()
-    end
-end
-
-function Game:saveGame(level)
-
-end
-
 function Game:keyPressed(key, scancode, isrepeat)
     if key == "escape" then
         love.event.quit()
     end
 
+    if self.uiVisible and self.ui:keyPressed(key, scancode, isrepeat) then
+        print("keypressed")
+        return
+    end
+
     if key == "s" and love.keyboard.isDown("lctrl") then
         print("saving game")
-        self:saveLevel("savegame")
+        self.system:save()
         return
     end
 
 
-    if self.editor then
-        self.editor:keyPressed(key, scancode, isrepeate)
+    if self.system and self.system.map then
+        self.system:keyPressed(key, scancode, isrepeate)
     end
 end
 
 function Game:keyReleased(key, scancode)
-    if self.editor then
-        self.editor:keyReleased(key, scancode)
+    if self.uiVisible and self.ui:keyReleased(key, scancode) then
+        return 
+    end
+
+    if self.system and self.system.map then
+        self.system:keyReleased(key, scancode)
     end
 end
 
 function Game:mousePressed(x, y, button, istouch)
-    if self.editor then
-        self.editor:mousePressed(x, y, button, istouch)
+    if self.uiVisible and self.ui:mousePressed(x, y, button, istouch) then
+        return
+    end
+
+    if self.system and self.system.map then
+        self.system:mousePressed(x, y, button, istouch)
     end
 end
 
 function Game:mouseReleased(x, y, button, istouch)
-    if self.editor then
-        self.editor:mouseReleased(x, y, button, istouch)
+    if self.uiVisible and self.ui:mouseReleased(x, y, button, istouch) then
+        return
+    end
+
+    if self.system and self.system.map then
+        self.system:mouseReleased(x, y, button, istouch)
     end
 end
 
 function Game:mouseMoved(x, y, dx, dy, istouch)
-    if self.editing then
-        self.editor:mouseMoved(x, y, dx, dy, istouch)
+    if self.uiVisible and self.ui:mouseMoved(x, y, dx, dy, istouch) then
+        return
+    end
+
+    if self.system and self.system.map then
+        self.system:mouseMoved(x, y, dx, dy, istouch)
     end
 end
 
 function Game:textInput(text)
-    io.write(text)
+    if self.uiVisible and self.ui:textInput(text) then
+        return
+    end
 end
 
 function Game:wheelMoved(x, y)
-    if self.editing then
-        self.editor:wheelMoved(x, y)
+    if self.system and self.system.map then
+        self.system:wheelMoved(x, y)
     end
 end
 
