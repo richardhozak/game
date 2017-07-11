@@ -9,7 +9,6 @@ local Level = Object:extend()
 
 function Level:new(camera)
     self.camera = camera
-    self.paused = false
 end
 
 function Level:reset()
@@ -69,18 +68,14 @@ function Level:loadDefault()
     Block(self.world, self.width - xOffset - 500, self.height - yOffset - 50, 500, 50)
 end
 
-function Level:update(dt, x, y, width, height)
-    if self.paused then
-        return
-    end
-
+function Level:update(dt)
     local items, len = self.world:getItems()
     for i=1, len do
         items[i]:update(dt)
     end
 end
 
-function Level:draw()
+function Level:draw(x, y, width, height)
     local items, len = self.world:getItems()
     for i=1, len do
         items[i]:draw()
@@ -139,28 +134,6 @@ function Level:drawMinimap(x, y, w, h, scale)
     love.graphics.setScissor()
 end
 
-function Level:updateUi()
-    if self.paused then
-        local width, height = love.graphics.getDimensions()
-        local windowWidth = 200
-        local windowHeight = 140
-        local windowOffsetY = 50
-        local windowOffsetX = (width-windowWidth)/2
-
-        --[[
-        if nk.windowBegin("Pause", windowOffsetX, windowOffsetY, windowWidth, windowHeight, "title") then
-            nk.layoutRow("dynamic", 35, 1)
-            if nk.button("Resume") then
-                self.paused = false
-            end
-            if nk.button("Main menu") then
-                return "main"
-            end
-        end
-        nk.windowEnd()
-        ]]
-    end
-end
 function Level:load(filename)
     print("loading level map", filename)
     self.map = bitser.loadLoveFile("maps/" .. filename)
@@ -171,12 +144,6 @@ function Level:save()
 end
 
 function Level:keyPressed(key, scancode, isrepeat)
-    if key == "escape" then
-        self.paused = not self.paused
-        return
-    end
-
-    print("keypressed")
     self.player:keypressed(key, scancode, isrepeat)
 end
 
