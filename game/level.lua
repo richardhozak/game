@@ -38,6 +38,10 @@ function Level:reset()
         end
     end
 
+    if not self.player then
+        self.player = Player(self, self.world, self.camera, self.map.x, self.map.y, 32, 32)
+    end
+
     self.camera:setBounds(self.x, self.y, self.width, self.height)
 end
 
