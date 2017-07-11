@@ -1,5 +1,6 @@
 local Object = require("lib.classic")
 local bump = require("lib.bump")
+local bitser = require("lib.bitser")
 local Player = require("entities.player")
 local Block = require("entities.block")
 local Enemy = require("entities.enemy")
@@ -156,8 +157,10 @@ function Level:updateUi()
         ]]
     end
 end
-
-function Level:load()
+function Level:load(filename)
+    print("loading level map", filename)
+    self.map = bitser.loadLoveFile("maps/" .. filename)
+    self:reset()
 end
 
 function Level:save()
