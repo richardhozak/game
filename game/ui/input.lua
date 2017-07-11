@@ -19,6 +19,7 @@ function Input:new()
 	self.caretHeight = 0
 	self.mouseover = false
 	self.cursor = love.mouse.getSystemCursor("ibeam")
+	self.bindings = self:createBindings()
 end
 
 function Input:mousePressed(x, y, button, istouch)
@@ -36,6 +37,7 @@ function Input:update()
 	else
 		love.mouse.setCursor()
 	end
+	self:evaluateBindings(self.bindings)
 	self.super.update(self)
 end
 
@@ -99,7 +101,7 @@ function Input:keyPressed(key, scancode, isrepeat)
 	elseif key == "end" then
 		self:setPosition(self:getMaxPosition())
 	elseif key == "return" then
-		util.emit(self.onAccepted, self)
+		util.emit(self.onAccepted, self.text)
     end
 end
 
