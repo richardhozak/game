@@ -14,7 +14,7 @@ function Weapon:new(player, world, camera)
 	self.rotation = 0
 	self.offset = self.player.width / 2 - 10
 	self.timeShotTimer = 0
-	self.timeBetweenShots = 4 * 1000
+	self.timeBetweenShots = 0.25
 	self.shooting = false
 end
 
@@ -32,9 +32,7 @@ function Weapon:update(dt)
 		self:fire()
 	end
 
-	if self.timeShotTimer > 0 then
-		self.timeShotTimer = self.timeShotTimer - love.timer.getTime()*dt
-	end
+	self.timeShotTimer = self.timeShotTimer - dt
 end
 
 function Weapon:draw()
