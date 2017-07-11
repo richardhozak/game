@@ -41,7 +41,9 @@ function Level:reset()
         self.player = Player(self, self.world, self.camera, self.map.x, self.map.y, 32, 32)
     end
 
+    self.camera:setScale(1)
     self.camera:setBounds(self.x, self.y, self.width, self.height)
+    self.camera:lookAt(self.player)
 end
 
 function Level:loadDefault()
