@@ -64,6 +64,17 @@ function Editor:reset()
     self.toolbar = self:createToolbar()
 end
 
+function Editor:getDefaultMap()
+    return {
+        x=0,
+        y=0,
+        width=0,
+        height=0,
+        items={},
+        version=2
+    }
+end
+
 function Editor:paintTile(index, x, y)
     local mapItems = self.map.items
     if mapItems[x] == nil then
@@ -385,8 +396,16 @@ end
 
 function Editor:load(filename)
     print("loading editor map", filename)
-    self.map = bitser.loadLoveFile("maps/" .. filename)
+    local filepath = "maps/" .. filename
+    
     self.loadedMapName = filename
+    if love.filesystem.exists(filepath) then
+        self.map = bitser.loadLoveFile(filepath)
+    else
+        self.map = self:getDefaultMap()
+        self:save()
+    end
+
     self:reset()
 end
 
@@ -401,59 +420,22 @@ function Editor:save(filename)
 
     local smallestX, smallestY = self:getSmallestPosition(self.map.items)
     local largestX, largestY = self:getLargestPosition(self.map.items)
-    local mapWidth = largestX - smallestX
-    local mapHeight = largestY - smallestY
-    print(smallestX, smallestY, largestX, largestY, mapWidth, mapHeight)
 
-    self.map.x = smallestX
-    self.map.y = smallestY
-    self.map.width = mapWidth
-    self.map.height = mapHeight
+    self.map.x = smallestX or 0
+    self.map.y = smallestY or 0
+    self.map.width = (largestX or 0) - self.map.x
+    self.map.height = (largestY or 0) - self.map.y
     self.map.version = 2
 
+    print(smallestX, smallestY, largestX, largestY, self.map.width, self.map.height)
+
     bitser.dumpLoveFile("maps/" .. filename, self.map)
-
-    -- local file, errorstr = love.filesystem.newFile("maps/" .. filename, "w")
-    -- if file then
-    --     print("saving file")
-        
-    --     -- mapX = mapX / self.tileSize
-    --     -- mapY = mapY / self.tileSize
-    --     -- mapWidth = mapWidth / self.tileSize + 1
-    --     -- mapHeight = mapHeight / self.tileSize + 1
-
-    --     -- local mappedItems = {}
-
-    --     -- for i=1, len do
-    --     --     local item = items[i]
-    --     --     table.insert(mappedItems, {x=item.x/self.tileSize,y=item.y/self.tileSize,tile=item.index})
-    --     -- end
-
-    --     -- print("w", mapWidth)
-    --     -- print("h", mapHeight)
-
-    --     -- local map = {}
-    --     -- map.version = 1
-    --     -- map.items = mappedItems
-    --     -- map.x = mapX
-    --     -- map.y = mapY
-    --     -- map.width = mapWidth
-    --     -- map.height = mapHeight
-    --     -- self.map = map
-
-    --     -- local encoded = luatable.encode_pretty(map)
-    --     -- file:write(encoded)
-    --     -- file:close()
-    -- else
-    --     error(errorstr)
-    -- end
 end
 
 function Editor:mousePressed(x, y, button)
     if self.toolbar:mousePressed(x, y, button) then
         return true
     end
-
 
     if button == 1 then
         self.mouseLeftPressed = true
