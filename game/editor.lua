@@ -424,8 +424,8 @@ function Editor:save(filename)
 
     self.map.x = smallestX or 0
     self.map.y = smallestY or 0
-    self.map.width = (largestX or 0) - self.map.x
-    self.map.height = (largestY or 0) - self.map.y
+    self.map.width = (largestX or 0) - self.map.x + 1
+    self.map.height = (largestY or 0) - self.map.y + 1
     self.map.version = 2
 
     print(smallestX, smallestY, largestX, largestY, self.map.width, self.map.height)
