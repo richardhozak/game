@@ -21,16 +21,16 @@ function Game:new()
     self.editor = Editor(self.camera)
     self.level = Level(self.camera)
 
-    self.system = nil
+    self.system = self.level
 
-    self.ui = self:createUi()
     self.uiVisible = true
+    self.ui = self:createUi()
 end
 
 function Game:createUi()
     return ui.column {
-        x=function(item) return (love.graphics.getWidth() - item.width) / 2 end,
-        y=50,
+        x=10, --function(item) return (love.graphics.getWidth() - item.width) / 2 end
+        y=10,
         ui.button {
             text={
                 color={50,50,50},
@@ -49,6 +49,17 @@ function Game:createUi()
                 end
             end
         },
+        ui.input {
+            visible=function(item)
+                return self.system == self.editor
+            end,
+            onAccepted=function(item)
+                return function(value)
+                    self.editor:load(value)
+                    self.uiVisible = false
+                end
+            end
+        },
         ui.repeater {
             levels=function(item) return love.filesystem.getDirectoryItems("maps") end,
             times=function(item) return item.levels and #item.levels or 0 end,
@@ -57,7 +68,7 @@ function Game:createUi()
                     value=function(item) return item.parent.levels[item.index] end,
                     color={50,50,50}
                 },
-                onPressed=function(item)
+                onClicked=function(item)
                     return function()
                         print("loading", item.text.value)
                         self.system:load(item.text.value)
@@ -66,17 +77,6 @@ function Game:createUi()
                 end
             }
         }
-    }
-end
-
-function Game:getDefaultMap()
-    return {
-        x=0,
-        y=0,
-        width=0,
-        height=0,
-        items={},
-        version=2
     }
 end
 
@@ -114,16 +114,14 @@ end
 
 function Game:keyPressed(key, scancode, isrepeat)
     if key == "escape" then
-        love.event.quit()
+        self.uiVisible = not self.uiVisible
     end
 
     if self.uiVisible and self.ui:keyPressed(key, scancode, isrepeat) then
-        print("keypressed")
         return
     end
 
     if key == "s" and love.keyboard.isDown("lctrl") then
-        print("saving game")
         self.system:save()
         return
     end
