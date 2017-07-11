@@ -86,6 +86,22 @@ function Enemy:reset()
 	self.isDead = false
 end
 
+function Enemy:addTileToPath(mapX, mapY, mapItems, path)
+	local tile = self:tileAtCoords(mapItems, mapX, mapY)
+	if tile == 9 then
+		self:computePath(mapX, mapY, mapItems, path)
+		return true
+	elseif tile == 8 and path.points then
+		local firstPoint = path.points[1]
+		if firstPoint.x == mapX and firstPoint.y == mapY then
+			path.circular = true
+			return true
+		end
+	end
+
+	return false
+end
+
 function Enemy:computePath(mapX, mapY, mapItems, path)
 	if not path then
 		path = {}
@@ -95,25 +111,10 @@ function Enemy:computePath(mapX, mapY, mapItems, path)
 		return path
 	end
 
-	local pathTop = self:tileAtCoords(mapItems, mapX, mapY-1) == 9
-	if pathTop then
-		self:computePath(mapX, mapY-1, mapItems, path)
-	end
-
-	local pathLeft = self:tileAtCoords(mapItems, mapX-1, mapY) == 9
-	if pathLeft then
-		self:computePath(mapX-1, mapY, mapItems, path)
-	end
-
-	local pathBottom = self:tileAtCoords(mapItems, mapX, mapY+1) == 9
-	if pathBottom then
-		self:computePath(mapX, mapY+1, mapItems, path)
-	end
-	
-	local pathRight = self:tileAtCoords(mapItems, mapX+1, mapY) == 9
-	if pathRight then
-		self:computePath(mapX+1, mapY, mapItems, path)
-	end
+	self:addTileToPath(mapX, mapY-1, mapItems, path)
+	self:addTileToPath(mapX-1, mapY, mapItems, path)
+	self:addTileToPath(mapX, mapY+1, mapItems, path)
+	self:addTileToPath(mapX+1, mapY, mapItems, path)
 
 	return path
 end
@@ -150,7 +151,7 @@ function Enemy:update(dt)
 			self.pathStep = self.pathStep * -1
 		end
 
-		self.newRotation = self:getRotationToNext(self.path.points[self.pathIndex], self.path.points[newIndex])
+		self.newRotation = self:getRotationToNext(self.path.points[self.pathIndex], self.path.points[newIndex]) or self.rotation
 		self.oldRotation = self.rotation
 
 		self.pathIndex = newIndex
