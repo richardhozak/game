@@ -59,6 +59,7 @@ function Editor:reset()
     self.visibility.help = false
     self.camera:setBounds()
     self.camera:setPosition(self.map.x * self.tileSize, self.map.y * self.tileSize)
+    self.camera:lookAt(nil)
     self.mouseLeftPressed = false
     self.mouseRightPressed = false
     self.toolbar = self:createToolbar()
