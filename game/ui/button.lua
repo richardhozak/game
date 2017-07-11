@@ -32,8 +32,6 @@ function Button:new()
 end
 
 function Button:mousePressed(x, y, button, istouch)
-	if not self.enabled then return false end
-	
 	if self.super.mousePressed(self, x, y, button, istouch) then
 		return true
 	end
@@ -56,10 +54,6 @@ end
 
 function Button:update()
 	self:evaluateBindings(self.bindings)
-
-	if not self.enabled then
-		return
-	end
 
 	if self.down then
 		if self.mouseover then

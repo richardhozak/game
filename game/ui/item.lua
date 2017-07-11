@@ -17,10 +17,8 @@ local function updateChildren(t, root)
     root = root or t
     for index, child in ipairs(t) do
         if child.name then
-            if child.visible then
-                child.parent = root
-                child:update()
-            end
+            child.parent = root
+            child:update()
         else
             if type(child.update) == "function" then
                 child:update()
@@ -70,9 +68,7 @@ end
 
 function Item:layout()
     for index, child in ipairs(self) do
-        if child.visible then
-            child:layout()
-        end
+        child:layout()
     end
 end
 
@@ -90,10 +86,10 @@ function Item:containsPoint(x, y)
 end
 
 function Item:mousePressed(x, y, button, istouch)
-    if self:containsPoint(x, y) and self.visible then
+    if self:containsPoint(x, y) then
         for i=#self, 1, -1 do
             local item = self[i]
-            if item:containsPoint(x, y, button, istouch) and item.visible then
+            if item:containsPoint(x, y, button, istouch) then
                 if item:mousePressed(x, y, button, istouch) then
                     return true
                 end
@@ -116,10 +112,6 @@ function Item:mouseReleased(x, y, button, istouch)
 end
 
 function Item:mouseMoved(x, y, dx, dy, istouch)
-    if not self.visible then
-        return false
-    end
-
     local mouseover = false
 
     for i=#self, 1, -1 do
@@ -141,7 +133,7 @@ function Item:mouseMoved(x, y, dx, dy, istouch)
 end
 
 function Item:textInput(text)
-    if not self.enabled or not self.visible then
+    if not self.enabled then
         return false
     end
 
@@ -154,7 +146,7 @@ function Item:textInput(text)
 end
 
 function Item:keyReleased(key, scancode)
-    if not self.enabled or not self.visible then
+    if not self.enabled then
         return false
     end
 
@@ -169,7 +161,7 @@ function Item:keyReleased(key, scancode)
 end
 
 function Item:keyPressed(key, scancode, isrepeat)
-    if not self.enabled or not self.visible then
+    if not self.enabled then
         return false
     end
 
