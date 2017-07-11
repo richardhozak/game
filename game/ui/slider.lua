@@ -9,8 +9,8 @@ function Slider:new()
 	self.super.new(self)
 	self.width = self.width or 100
 	self.height = self.height or 25
-	self.min = 0
-	self.max = 100
+	self.min = self.min or 0
+	self.max = self.max or 100
 	self.position = 0.5
 end
 
@@ -46,7 +46,7 @@ function Slider:mouseMoved(x, y, dx, dy, istouch)
 	if self.down then
 		local localX = x - self.x
 		self.position = util.clamp(localX / self.width, 0, 1)
-
+		util.emit(self.onValue, self.max * self.position)
 		return true
 	else
 		return false
