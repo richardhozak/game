@@ -164,4 +164,7 @@ end
 function Level:mouseMoved(x, y, dx, dy, istouch)
 end
 
+function Level:wheelMoved(x, y)
+end
+
 return Level
