@@ -5,18 +5,17 @@ local opts = {process=function(item, path)
 pprint = function(t) print(inspect(t, opts)) end
 
 local Game = require("game")
-local ui = require("ui")
 local game
-
-local count = 2
-
-local displayText = ""
 
 function love.load()
     io.stdout:setvbuf("no")
+    local crosshair = love.mouse.newCursor("cross.png", 10, 10)
+    love.mouse.setCursor(crosshair)
+
     love.graphics.setFont(love.graphics.newFont("fonts/OpenSans-Light.ttf", 13))
 
     love.window.setMode(800, 600, {x=1119, y=25, resizable=true})
+    -- love.window.setMode(800, 600, {x=2100, y=1000, resizable=true})
     game = Game()
 end
 
