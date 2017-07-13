@@ -28,28 +28,6 @@ function Enemy:tileAtCoords(items, mapX, mapY)
 	end
 end
 
-function Enemy:addToPath(path, x, y)
-	assert(type(path) == "table", "path needs to be table")
-	
-	if not path[x] then
-		path[x] = {}
-	end
-
-	if path[x][y] then
-		return false
-	end
-
-	if not path.points then
-		path.points = {}
-	end
-
-	table.insert(path.points, {x=x,y=y})
-	
-	path[x][y] = #path.points
-
-	return true
-end
-
 function Enemy:getRotationToNext(currentPoint, nextPoint)
 	local cx, cy = currentPoint.x, currentPoint.y
 	local nx, ny = nextPoint.x, nextPoint.y
@@ -76,8 +54,8 @@ function Enemy:reset()
 
 	local mapItems = self.map.items
 	self.path = self:computePath(self.mapX, self.mapY, mapItems)
-	self.pathPoint = self.path.points[self.pathIndex]
-	self.rotation = self:getRotationToNext(self.pathPoint, self.path.points[self.pathIndex+1])
+	self.pathPoint = self.path[self.pathIndex]
+	self.rotation = self:getRotationToNext(self.pathPoint, self.path[self.pathIndex+1])
 	self.newRotation = self.rotation
 	self.oldRotation = self.rotation
 	self.oldX = self.x
@@ -86,15 +64,43 @@ function Enemy:reset()
 	self.isDead = false
 end
 
-function Enemy:addTileToPath(mapX, mapY, mapItems, path)
-	local tile = self:tileAtCoords(mapItems, mapX, mapY)
-	if tile == 9 then
-		self:computePath(mapX, mapY, mapItems, path)
-		return true
-	elseif tile == 8 and path.points then
-		local firstPoint = path.points[1]
-		if firstPoint.x == mapX and firstPoint.y == mapY then
-			path.circular = true
+function Enemy:addToPath(point, path)
+	assert(type(point) == "table", "point must be table")
+	assert(type(point.x) == "number" and type(point.y) == "number", "point must contain x and y coordinates as numbers")
+	assert(type(path) == "table", "path must be table")
+
+	path[#path+1] = point
+end
+
+function Enemy:createPathPoint(x, y, mapItems, path)
+	local row = mapItems[x]
+	if row then
+		local tile = row[y]
+		if tile then
+			if tile == 8 or tile == 9 then
+				local point = {x=x, y=y}
+				if path then
+					if not self:pathContainsPoint(path, point) then
+						return point
+					end
+				else
+					return point
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+function Enemy:areSamePathPoints(point1, point2)
+	return point1.x == point2.x and point1.y == point2.y
+end
+
+function Enemy:pathContainsPoint(path, point)
+	for i,v in ipairs(path) do
+		pprint(v)
+		if self:areSamePathPoints(v, point) then
 			return true
 		end
 	end
@@ -102,21 +108,76 @@ function Enemy:addTileToPath(mapX, mapY, mapItems, path)
 	return false
 end
 
-function Enemy:computePath(mapX, mapY, mapItems, path)
-	if not path then
-		path = {}
-	end
+function Enemy:computePath(startX, startY, mapItems)
+	local path = {circular=false}
 
-	if not self:addToPath(path, mapX, mapY) then
-		return path
-	end
+	local startingPoint = {x=startX, y=startY}
+	self:addToPath(startingPoint, path)
 
-	self:addTileToPath(mapX, mapY-1, mapItems, path)
-	self:addTileToPath(mapX-1, mapY, mapItems, path)
-	self:addTileToPath(mapX, mapY+1, mapItems, path)
-	self:addTileToPath(mapX+1, mapY, mapItems, path)
+	local lastDirection = nil
+
+	local order = {
+		"right",
+		"top",
+		"left",
+		"bottom"
+	}
+
+	local opposite = {
+		["right"]="left",
+		["top"]="bottom",
+		["left"]="right",
+		["bottom"]="top",
+	}
+
+	while true do
+		local possibleDirections = self:getPossibleDirections(lastPoint, mapItems, path)
+		possibleDirections[opposite[lastDirection]] = nil
+		
+		if not lume.any(possibleDirections) then
+			print("path completed")
+			break
+		end
+
+		for k,direction in ipairs(order) do
+			local point = possibleDirections[direction]
+			if point then
+				lastDirection = direction
+				self:addToPath(point, path)
+				break
+			end
+		end
+	end
 
 	return path
+end
+
+function Enemy:getPossibleDirections(currentPoint, mapItems, path)
+	local cx, cy = currentPoint.x, currentPoint.y
+
+	local possibleDirections = {
+		["right"]  = self:createPathPoint(cx+1, cy, mapItems, path),
+		["top"]    = self:createPathPoint(cx, cy-1, mapItems, path),
+		["left"]   = self:createPathPoint(cx-1, cy, mapItems, path),
+		["bottom"] = self:createPathPoint(cx, cy+1, mapItems, path),
+	}
+
+	return possibleDirections
+end
+
+function Enemy:getNextPathPoint(currentPoint, mapItems, path)
+	local cx, cy = currentPoint.x, currentPoint.y
+
+	local possibleDirections = {
+		self:createPathPoint(cx+1, cy, mapItems, path),
+		self:createPathPoint(cx, cy-1, mapItems, path),
+		self:createPathPoint(cx-1, cy, mapItems, path),
+		self:createPathPoint(cx, cy+1, mapItems, path),
+	}
+
+	possibleDirections = lume.filter(possibleDirections)
+
+	return possibleDirections[1]
 end
 
 function Enemy:hit()
@@ -143,20 +204,20 @@ function Enemy:update(dt)
 			self.waitTime = defaultWaitTime
 		end
 
-		if self.pathIndex == #self.path.points and newIndex == #self.path.points - 1 then
+		if self.pathIndex == #self.path and newIndex == #self.path - 1 then
 			self.waitTime = defaultWaitTime
 		end
 
-		if newIndex == 1 or newIndex == #self.path.points then
+		if newIndex == 1 or newIndex == #self.path then
 			self.pathStep = self.pathStep * -1
 		end
 
-		self.newRotation = self:getRotationToNext(self.path.points[self.pathIndex], self.path.points[newIndex]) or self.rotation
+		self.newRotation = self:getRotationToNext(self.path[self.pathIndex], self.path[newIndex]) or self.rotation
 		self.oldRotation = self.rotation
 
 		self.pathIndex = newIndex
 
-		self.pathPoint = self.path.points[self.pathIndex]
+		self.pathPoint = self.path[self.pathIndex]
 		self.oldX = self.x
 		self.oldY = self.y
 	end
