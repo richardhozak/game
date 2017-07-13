@@ -3,6 +3,7 @@ local util = require("util")
 local Bullet = require("entities.bullet")
 local Weapon = require("entities.weapon")
 local Entity = require("entities.entity")
+local Enemy = require("entities.enemy")
 
 local Player = Entity:extend()
 
@@ -19,6 +20,12 @@ end
 function Player:collisionFilter(other)
     if other:is(Bullet) then
         return "cross"
+    elseif other:is(Enemy) then
+        if other.isDead then
+            return "cross"
+        else
+            return "slide"
+        end
     else
         return "slide"
     end
