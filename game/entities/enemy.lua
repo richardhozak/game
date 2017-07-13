@@ -1,5 +1,6 @@
 local util = require("util")
 local lume = require("lib.lume")
+local flux = require("lib.flux")
 local Entity = require("entities.entity")
 
 local Enemy = Entity:extend()
@@ -28,25 +29,6 @@ function Enemy:tileAtCoords(items, mapX, mapY)
 	end
 end
 
-function Enemy:getRotationToNext(currentPoint, nextPoint)
-	local cx, cy = currentPoint.x, currentPoint.y
-	local nx, ny = nextPoint.x, nextPoint.y
-
-	if nx == cx then
-		if ny < cy then
-			return math.pi/2
-		elseif ny > cy then
-			return 3 * math.pi / 2
-		end
-	elseif ny == cy then
-		if nx < cx then
-			return math.pi
-		elseif nx > cx then
-			return 0
-		end
-	end
-end
-
 function Enemy:reset()
 	self.timeToMove = 0
 	self.pathIndex = 1
@@ -55,13 +37,15 @@ function Enemy:reset()
 	local mapItems = self.map.items
 	self.path = self:computePath(self.mapX, self.mapY, mapItems)
 	self.pathPoint = self.path[self.pathIndex]
-	self.rotation = self:getRotationToNext(self.pathPoint, self.path[self.pathIndex+1])
+	pprint(self.path)
+	self.rotation = math.pi/2--self:getRotationToNext(self.pathPoint, self.path[self.pathIndex+1])
 	self.newRotation = self.rotation
 	self.oldRotation = self.rotation
 	self.oldX = self.x
 	self.oldY = self.y
 	self.waitTime = 0
 	self.isDead = false
+	self.moveAnimation = nil
 end
 
 function Enemy:addToPath(point, path)
@@ -79,13 +63,7 @@ function Enemy:createPathPoint(x, y, mapItems, path)
 		if tile then
 			if tile == 8 or tile == 9 then
 				local point = {x=x, y=y}
-				if path then
-					if not self:pathContainsPoint(path, point) then
-						return point
-					end
-				else
-					return point
-				end
+				return point
 			end
 		end
 	end
@@ -99,7 +77,6 @@ end
 
 function Enemy:pathContainsPoint(path, point)
 	for i,v in ipairs(path) do
-		pprint(v)
 		if self:areSamePathPoints(v, point) then
 			return true
 		end
@@ -114,6 +91,7 @@ function Enemy:computePath(startX, startY, mapItems)
 	local startingPoint = {x=startX, y=startY}
 	self:addToPath(startingPoint, path)
 
+	local lastPoint = startingPoint
 	local lastDirection = nil
 
 	local order = {
@@ -131,10 +109,16 @@ function Enemy:computePath(startX, startY, mapItems)
 	}
 
 	while true do
+		if path.circular then
+			break
+		end
+
 		local possibleDirections = self:getPossibleDirections(lastPoint, mapItems, path)
-		possibleDirections[opposite[lastDirection]] = nil
+		if lastDirection then
+			possibleDirections[opposite[lastDirection]] = nil
+		end
 		
-		if not lume.any(possibleDirections) then
+		if not lume.any(possibleDirections)  then
 			print("path completed")
 			break
 		end
@@ -142,8 +126,13 @@ function Enemy:computePath(startX, startY, mapItems)
 		for k,direction in ipairs(order) do
 			local point = possibleDirections[direction]
 			if point then
+				lastPoint = point
 				lastDirection = direction
-				self:addToPath(point, path)
+				if self:areSamePathPoints(point, startingPoint) then
+					path.circular = true
+				else
+					self:addToPath(point, path)
+				end
 				break
 			end
 		end
@@ -182,54 +171,118 @@ end
 
 function Enemy:hit()
 	self.isDead = true
+	if self.moveAnimation then
+		self.moveAnimation:stop()
+	end
 end
 
-function Enemy:update(dt)
-	if self.isDead then
-		return
-	end
-
+function Enemy:needsToWait(dt)
 	if self.waitTime > 0 then
 		self.waitTime = self.waitTime - dt
-		return
+		return true
 	end
 
+	return false
+end
+
+function Enemy:canMove(dt)
 	self.timeToMove = self.timeToMove - dt
 	if self.timeToMove <= 0 then
 		self.timeToMove = defaultTimeToMove
-
-		local newIndex = self.pathIndex + self.pathStep
-
-		if self.pathIndex == 1 and newIndex == 2 then
-			self.waitTime = defaultWaitTime
-		end
-
-		if self.pathIndex == #self.path and newIndex == #self.path - 1 then
-			self.waitTime = defaultWaitTime
-		end
-
-		if newIndex == 1 or newIndex == #self.path then
-			self.pathStep = self.pathStep * -1
-		end
-
-		self.newRotation = self:getRotationToNext(self.path[self.pathIndex], self.path[newIndex]) or self.rotation
-		self.oldRotation = self.rotation
-
-		self.pathIndex = newIndex
-
-		self.pathPoint = self.path[self.pathIndex]
-		self.oldX = self.x
-		self.oldY = self.y
+		return true
 	end
 
-	local destinationProgress = 1-(self.timeToMove/defaultTimeToMove)
-	local destX = self.pathPoint.x*self.tileSize
-	local destY = self.pathPoint.y*self.tileSize
-	local x = lume.lerp(self.oldX, destX, destinationProgress)
-	local y = lume.lerp(self.oldY, destY, destinationProgress)
+	return false
+end
 
-    self.x, self.y = self.world:move(self, x, y, self.collisionFilter)
-    self.rotation = lume.lerp(self.oldRotation, self.newRotation, destinationProgress*3)
+function Enemy:nextPathIndex(pathIndex, pathStep)
+	local newPathIndex = pathIndex + pathStep
+	if pathStep >= 1 then
+		if newPathIndex > #self.path then
+			if self.path.circular then
+				newPathIndex = 1
+			else
+				pathStep = pathStep * -1
+				newPathIndex = pathIndex + pathStep
+			end
+		end
+	elseif pathStep <= -1 then
+		if newPathIndex < 1 then
+			if self.path.circular then
+				newPathIndex = #self.path
+			else
+				pathStep = pathStep * -1
+				newPathIndex = pathIndex + pathStep
+			end
+		end
+	else
+		newPathIndex = pathIndex
+	end
+
+	return newPathIndex, pathStep
+end
+
+function Enemy:getCurrentPathPosition()
+	local point = self.path[self.pathIndex]
+	return {x=point.x * self.tileSize, y=point.y * self.tileSize}
+end
+
+function Enemy:getRotationToPoint(startPoint, endPoint)
+	local startx, starty = startPoint.x, startPoint.y
+	local endx, endy = endPoint.x, endPoint.y
+
+	if endx == startx then
+		if endy < starty then
+			return math.pi/2
+		elseif endy > starty then
+			return 3 * math.pi / 2
+		end
+	elseif endy == starty then
+		if endx < startx then
+			return math.pi
+		elseif endx > startx then
+			return 0
+		end
+	end
+end
+
+function Enemy:getRotationToNext(currentRotation, currentPoint, nextPoint)
+	currentRotation = currentRotation % (math.pi*2)
+	local nextRotation = self:getRotationToPoint(currentPoint, nextPoint)
+
+	if not nextRotation then
+		return currentRotation
+	end
+
+	local diff = currentRotation - nextRotation
+	print(currentRotation, nextRotation, diff)
+
+
+	if diff >= math.pi then
+		local remainder = diff % math.pi
+		return remainder * -1
+	elseif diff < math.pi then
+		local remainder = diff % math.pi
+		return remainder * -1
+	end
+end
+
+function Enemy:update(dt)
+	if self.isDead or self:needsToWait(dt) then
+		return
+	end
+
+	if self:canMove(dt) then
+		local oldPathPoint = self.path[self.pathIndex]
+		self.pathIndex, self.pathStep = self:nextPathIndex(self.pathIndex, self.pathStep)
+		--print(self.pathIndex, self.pathStep)
+		self.moveAnimation = flux.to(self, defaultTimeToMove, self:getCurrentPathPosition()):ease("linear"):onupdate(function() 
+			self.x, self.y = self.world:move(self, self.x, self.y, self.collisionFilter) 
+		end)
+
+		local newRotation = self:getRotationToNext(self.rotation, oldPathPoint, self.path[self.pathIndex])
+		flux.to(self, defaultTimeToMove, {rotation=self.rotation + newRotation})
+	end
 end
 
 function Enemy:draw()

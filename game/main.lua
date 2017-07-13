@@ -6,6 +6,7 @@ pprint = function(t) print(inspect(t, opts)) end
 
 local Game = require("game")
 local game
+local flux = require("lib.flux")
 
 function love.load()
     io.stdout:setvbuf("no")
@@ -20,6 +21,7 @@ function love.load()
 end
 
 function love.update(dt)
+    flux.update(dt)
     game:update(dt)
 end
 
